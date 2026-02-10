@@ -1,0 +1,32 @@
+.status-card {
+  background: #161b22;
+  border: 1px solid #2d333b;
+  border-radius: 8px;
+  padding: 1.25rem;
+  border-left: 4px solid #2d333b;
+}
+
+.status-card--ok {
+  border-left-color: #3fb950;
+}
+
+.status-card--error {
+  border-left-color: #f85149;
+}
+
+.status-card--loading {
+  border-left-color: #d29922;
+}
+
+.status-card__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-card__body {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

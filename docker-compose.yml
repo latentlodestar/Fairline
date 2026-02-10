@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: fairline
+      POSTGRES_PASSWORD: fairline_dev
+      POSTGRES_DB: fairlinedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fairline -d fairlinedb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrator:
+    build:
+      context: .
+      dockerfile: src/Fairline.Migrator/Dockerfile
+    environment:
+      ConnectionStrings__fairlinedb: "Host=postgres;Port=5432;Database=fairlinedb;Username=fairline;Password=fairline_dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Fairline.Api/Dockerfile
+    ports:
+      - "5192:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__fairlinedb: "Host=postgres;Port=5432;Database=fairlinedb;Username=fairline;Password=fairline_dev"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

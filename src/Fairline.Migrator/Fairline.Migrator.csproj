@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Fairline.Migrator</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fairline.ServiceDefaults\Fairline.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Fairline.Infrastructure\Fairline.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

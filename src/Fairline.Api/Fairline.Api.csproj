@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Fairline.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fairline.ServiceDefaults\Fairline.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Fairline.Application\Fairline.Application.csproj" />
+    <ProjectReference Include="..\Fairline.Infrastructure\Fairline.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
