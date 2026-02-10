@@ -1,0 +1,106 @@
+/*
+ * Fairline Design Tokens
+ *
+ * Palette rationale:
+ * - Neutral-first (slate/graphite) conveys analytical credibility.
+ * - Single accent: a restrained steel-blue (#4a8af4 dark / #2556c4 light)
+ *   — chosen for trust and readability against data-dense backgrounds.
+ * - Success (green) = "value" / Danger (red) = "tax": deliberately muted so
+ *   color never overwhelms the numbers it annotates.
+ * - Backgrounds use blue-tinted darks rather than pure black, giving the
+ *   dark theme a modern "terminal" feel without being harsh.
+ *
+ * Typography rationale:
+ * - System font stack avoids layout shift from web-font loading and keeps
+ *   UI feeling native and fast.
+ * - tabular-nums on data cells ensures columns of numbers stay aligned.
+ * - Tight leading and compact sizing keep data dense but scannable.
+ */
+
+/* ================================================================
+   DARK THEME (default)
+   ================================================================ */
+:root {
+  --bg: #0c0f16;
+  --surface: #141822;
+  --surface-2: #1c2030;
+  --surface-3: #232838;
+
+  --fg: #e4e7ec;
+  --fg-2: #a0a7b5;
+  --muted: #6b7280;
+
+  --border: #232838;
+  --border-strong: #343b4e;
+
+  --primary: #4a8af4;
+  --primary-fg: #ffffff;
+  --primary-hover: #3b7ae5;
+  --primary-muted: rgba(74, 138, 244, 0.14);
+
+  --danger: #e5534b;
+  --danger-fg: #ffffff;
+  --danger-subtle: rgba(229, 83, 75, 0.12);
+  --danger-text: #f08882;
+
+  --success: #3fb950;
+  --success-fg: #ffffff;
+  --success-subtle: rgba(63, 185, 80, 0.12);
+  --success-text: #7ee787;
+
+  --warning: #d29922;
+  --warning-fg: #ffffff;
+  --warning-subtle: rgba(210, 153, 34, 0.12);
+  --warning-text: #e3b341;
+
+  --focus: #4a8af4;
+  --shadow: rgba(0, 0, 0, 0.4);
+  --ring: rgba(74, 138, 244, 0.4);
+  --row-hover: #1a1f2e;
+
+  color-scheme: dark;
+}
+
+/* ================================================================
+   LIGHT THEME
+   ================================================================ */
+[data-theme="light"] {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f1f4;
+  --surface-3: #e8eaef;
+
+  --fg: #111827;
+  --fg-2: #4b5563;
+  --muted: #9ca3af;
+
+  --border: #e2e5ea;
+  --border-strong: #d1d5db;
+
+  --primary: #2556c4;
+  --primary-fg: #ffffff;
+  --primary-hover: #1d4aa8;
+  --primary-muted: rgba(37, 86, 196, 0.08);
+
+  --danger: #c4342e;
+  --danger-fg: #ffffff;
+  --danger-subtle: #fef2f2;
+  --danger-text: #991b1b;
+
+  --success: #1a7f37;
+  --success-fg: #ffffff;
+  --success-subtle: #ecfdf5;
+  --success-text: #166534;
+
+  --warning: #9a6700;
+  --warning-fg: #ffffff;
+  --warning-subtle: #fffbeb;
+  --warning-text: #92400e;
+
+  --focus: #2556c4;
+  --shadow: rgba(0, 0, 0, 0.06);
+  --ring: rgba(37, 86, 196, 0.3);
+  --row-hover: #f9fafb;
+
+  color-scheme: light;
+}

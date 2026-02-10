@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { StatusCard } from "../components/StatusCard";
 import type { ApiStatusResponse, ProviderInfo, ScenarioSummary } from "../types";
-import "./StatusPage.css";
 
 export function StatusPage() {
   const [status, setStatus] = useState<ApiStatusResponse | null>(null);
@@ -32,12 +31,16 @@ export function StatusPage() {
   }, []);
 
   if (loading) {
-    return <div className="status-page"><p>Loading...</p></div>;
+    return (
+      <div className="page">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="status-page">
+      <div className="page">
         <StatusCard title="Error" status="error">
           <p>{error}</p>
         </StatusCard>
@@ -46,16 +49,18 @@ export function StatusPage() {
   }
 
   return (
-    <div className="status-page">
-      <h2>Dashboard</h2>
+    <div className="page">
+      <h2 className="section-title">System Status</h2>
 
-      <div className="status-grid">
-        <StatusCard
-          title="API Health"
-          status={status ? "ok" : "error"}
-        >
+      <div className="card-grid">
+        <StatusCard title="API Health" status={status ? "ok" : "error"}>
           <p>Version: {status?.version}</p>
-          <p>Timestamp: {status?.timestamp ? new Date(status.timestamp).toLocaleString() : "N/A"}</p>
+          <p>
+            Timestamp:{" "}
+            {status?.timestamp
+              ? new Date(status.timestamp).toLocaleString()
+              : "N/A"}
+          </p>
         </StatusCard>
 
         <StatusCard
@@ -71,7 +76,9 @@ export function StatusPage() {
           ) : (
             <ul>
               {providers.map((p) => (
-                <li key={p.id}>{p.name} ({p.slug})</li>
+                <li key={p.id}>
+                  {p.name} ({p.slug})
+                </li>
               ))}
             </ul>
           )}
@@ -83,7 +90,9 @@ export function StatusPage() {
           ) : (
             <ul>
               {scenarios.map((s) => (
-                <li key={s.id}>{s.name} ({s.comparisonCount} comparisons)</li>
+                <li key={s.id}>
+                  {s.name} ({s.comparisonCount} comparisons)
+                </li>
               ))}
             </ul>
           )}

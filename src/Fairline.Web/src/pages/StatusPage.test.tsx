@@ -36,7 +36,7 @@ describe("StatusPage", () => {
   it("renders dashboard after loading", async () => {
     render(<StatusPage />);
     await waitFor(() => {
-      expect(screen.getByText("Dashboard")).toBeInTheDocument();
+      expect(screen.getByText("System Status")).toBeInTheDocument();
     });
   });
 

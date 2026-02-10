@@ -1,5 +1,5 @@
+import { cn } from "../lib/cn";
 import type { ReactNode } from "react";
-import "./StatusCard.css";
 
 interface StatusCardProps {
   title: string;
@@ -7,11 +7,22 @@ interface StatusCardProps {
   status?: "ok" | "error" | "loading";
 }
 
-export function StatusCard({ title, children, status = "ok" }: StatusCardProps) {
+export function StatusCard({
+  title,
+  children,
+  status = "ok",
+}: StatusCardProps) {
   return (
-    <div className={`status-card status-card--${status}`}>
-      <h3 className="status-card__title">{title}</h3>
-      <div className="status-card__body">{children}</div>
+    <div
+      className={cn(
+        "card",
+        status === "ok" && "card--ok",
+        status === "error" && "card--error",
+        status === "loading" && "card--warning",
+      )}
+    >
+      <div className="card__header">{title}</div>
+      <div className="card__body">{children}</div>
     </div>
   );
 }
