@@ -1,6 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
+    .WithHostPort(5439)
     .WithDataVolume();
 
 var db = postgres.AddDatabase("fairlinedb");

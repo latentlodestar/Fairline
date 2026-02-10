@@ -1,34 +1,16 @@
-import { useEffect, useState } from "react";
-import { api } from "../api/client";
+import {
+  useGetStatusQuery,
+  useGetProvidersQuery,
+  useGetScenariosQuery,
+} from "../api/api";
 import { StatusCard } from "../components/StatusCard";
-import type { ApiStatusResponse, ProviderInfo, ScenarioSummary } from "../types";
 
 export function StatusPage() {
-  const [status, setStatus] = useState<ApiStatusResponse | null>(null);
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: status, isLoading: statusLoading, error: statusError } = useGetStatusQuery();
+  const { data: providers, isLoading: providersLoading } = useGetProvidersQuery();
+  const { data: scenarios, isLoading: scenariosLoading } = useGetScenariosQuery();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [statusRes, providersRes, scenariosRes] = await Promise.all([
-          api.getStatus(),
-          api.getProviders(),
-          api.getScenarios(),
-        ]);
-        setStatus(statusRes);
-        setProviders(providersRes);
-        setScenarios(scenariosRes);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const loading = statusLoading || providersLoading || scenariosLoading;
 
   if (loading) {
     return (
@@ -38,11 +20,11 @@ export function StatusPage() {
     );
   }
 
-  if (error) {
+  if (statusError) {
     return (
       <div className="page">
         <StatusCard title="Error" status="error">
-          <p>{error}</p>
+          <p>{"status" in statusError ? `HTTP ${statusError.status}` : statusError.message}</p>
         </StatusCard>
       </div>
     );
@@ -71,7 +53,7 @@ export function StatusPage() {
         </StatusCard>
 
         <StatusCard title="Latest Odds Pulls">
-          {providers.length === 0 ? (
+          {!providers || providers.length === 0 ? (
             <p className="placeholder">No providers configured yet</p>
           ) : (
             <ul>
@@ -85,7 +67,7 @@ export function StatusPage() {
         </StatusCard>
 
         <StatusCard title="Scenario Comparisons">
-          {scenarios.length === 0 ? (
+          {!scenarios || scenarios.length === 0 ? (
             <p className="placeholder">No scenarios created yet</p>
           ) : (
             <ul>
