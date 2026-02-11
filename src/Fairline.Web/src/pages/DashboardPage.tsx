@@ -1,23 +1,14 @@
 import { useState, useMemo } from "react";
 import { useGetEdgeComparisonsQuery } from "../api/api";
-import { KpiCard } from "../components/KpiCard";
 import { Badge } from "../components/Badge";
 import { Table, Th, Td, Tr } from "../components/Table";
 import { Select, Input } from "../components/Input";
 import { cn } from "../lib/cn";
-import type { EdgeComparisonRow, EdgeSignal } from "../types";
+import { formatDateTime } from "../lib/format";
+import type { EdgeSignal } from "../types";
 
 type SortColumn = "event" | "edge";
 type SortDir = "asc" | "desc";
-
-function formatMarket(key: string): string {
-  switch (key) {
-    case "h2h": return "ML";
-    case "spreads": return "Spread";
-    case "totals": return "Total";
-    default: return key;
-  }
-}
 
 function formatPrice(
   marketType: string,
@@ -79,8 +70,8 @@ function fullEvent(home: string, away: string): string {
 
 export function DashboardPage() {
   const { data, isLoading, error } = useGetEdgeComparisonsQuery();
-  const [sport, setSport] = useState("all");
-  const [market, setMarket] = useState("all");
+  const [sportGroup, setSportGroup] = useState("all");
+  const [league, setLeague] = useState("all");
   const [signal, setSignal] = useState("all");
   const [search, setSearch] = useState("");
   const [sortCol, setSortCol] = useState<SortColumn>("edge");
@@ -100,24 +91,32 @@ export function DashboardPage() {
     return sortDir === "asc" ? " \u25B2" : " \u25BC";
   }
 
-  const sports = useMemo(() => {
+  const sportGroups = useMemo(() => {
     if (!data) return [];
-    const unique = [...new Set(data.comparisons.map((c) => c.sportKey))];
+    const unique = [...new Set(data.comparisons.map((c) => c.sportGroup))];
     return unique.sort();
   }, [data]);
 
-  const markets = useMemo(() => {
+  const leagues = useMemo(() => {
     if (!data) return [];
-    const unique = [...new Set(data.comparisons.map((c) => c.marketType))];
-    return unique.sort();
-  }, [data]);
+    const rows = sportGroup === "all"
+      ? data.comparisons
+      : data.comparisons.filter((c) => c.sportGroup === sportGroup);
+    const seen = new Map<string, string>();
+    for (const c of rows) {
+      if (!seen.has(c.sportKey)) seen.set(c.sportKey, c.sportTitle);
+    }
+    return [...seen.entries()]
+      .map(([key, title]) => ({ key, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [data, sportGroup]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
     const q = search.toLowerCase();
     const rows = data.comparisons.filter((c) => {
-      if (sport !== "all" && c.sportKey !== sport) return false;
-      if (market !== "all" && c.marketType !== market) return false;
+      if (sportGroup !== "all" && c.sportGroup !== sportGroup) return false;
+      if (league !== "all" && c.sportKey !== league) return false;
       if (signal !== "all" && c.signal !== signal) return false;
       if (q && !`${c.homeTeam} ${c.awayTeam}`.toLowerCase().includes(q)) return false;
       return true;
@@ -137,7 +136,7 @@ export function DashboardPage() {
     });
 
     return rows;
-  }, [data, sport, market, signal, search, sortCol, sortDir]);
+  }, [data, sportGroup, league, signal, search, sortCol, sortDir]);
 
   if (isLoading) {
     return (
@@ -159,31 +158,17 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard">
-      <div className="kpi-strip">
-        <KpiCard label="Events" value={data.kpis.eventCount} />
-        <KpiCard label="Snapshots" value={data.kpis.snapshotCount.toLocaleString()} />
-        <KpiCard label="Books" value={data.kpis.bookCount} />
-        <KpiCard
-          label="Last Capture"
-          value={
-            data.kpis.latestCaptureUtc
-              ? new Date(data.kpis.latestCaptureUtc).toLocaleString()
-              : "N/A"
-          }
-        />
-      </div>
-
       <div className="filter-bar">
-        <Select value={sport} onChange={(e) => setSport(e.target.value)}>
+        <Select value={sportGroup} onChange={(e) => { setSportGroup(e.target.value); setLeague("all"); }}>
           <option value="all">All Sports</option>
-          {sports.map((s) => (
-            <option key={s} value={s}>{s}</option>
+          {sportGroups.map((g) => (
+            <option key={g} value={g}>{g}</option>
           ))}
         </Select>
-        <Select value={market} onChange={(e) => setMarket(e.target.value)}>
-          <option value="all">All Markets</option>
-          {markets.map((m) => (
-            <option key={m} value={m}>{formatMarket(m)}</option>
+        <Select value={league} onChange={(e) => setLeague(e.target.value)} disabled={sportGroup === "all"}>
+          <option value="all">All Leagues</option>
+          {leagues.map((l) => (
+            <option key={l.key} value={l.key}>{l.title}</option>
           ))}
         </Select>
         <Select value={signal} onChange={(e) => setSignal(e.target.value)}>
@@ -198,6 +183,15 @@ export function DashboardPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <div className="row-end">
+          <span>Last Capture</span>
+          <span>{
+              data.kpis.latestCaptureUtc
+                  ? formatDateTime(data.kpis.latestCaptureUtc)
+                  : "N/A"
+          }
+          </span>
+        </div>
       </div>
 
       <div className="card">
@@ -223,7 +217,6 @@ export function DashboardPage() {
                 >
                   Event{sortIndicator("event")}
                 </Th>
-                <Th>Market</Th>
                 <Th>Selection</Th>
                 <Th align="right">Pinnacle</Th>
                 <Th align="right">DraftKings</Th>
@@ -251,7 +244,6 @@ export function DashboardPage() {
                       {shortEvent(row.homeTeam, row.awayTeam)}
                     </span>
                   </Td>
-                  <Td>{formatMarket(row.marketType)}</Td>
                   <Td>{row.selectionKey}</Td>
                   <Td align="right">
                     {row.baselineBook

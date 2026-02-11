@@ -4,8 +4,9 @@ import { useEffect, useRef, type ReactNode } from "react";
 interface DialogProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
+  title?: ReactNode;
   children: ReactNode;
+  footer?: ReactNode;
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export function Dialog({
   onClose,
   title,
   children,
+  footer,
   className,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -29,6 +31,7 @@ export function Dialog({
     <dialog ref={ref} className={cn("dialog", className)} onClose={onClose}>
       {title && <div className="dialog__header">{title}</div>}
       <div className="dialog__body">{children}</div>
+      {footer && <div className="dialog__footer">{footer}</div>}
     </dialog>
   );
 }

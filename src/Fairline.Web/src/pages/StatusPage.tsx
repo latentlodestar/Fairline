@@ -1,8 +1,9 @@
 import { useGetStatusQuery, useGetRunsQuery, useGetDashboardQuery } from "../api/api";
-import { KpiCard } from "../components/KpiCard";
 import { Card, CardHeader, CardBody } from "../components/Card";
 import { Badge } from "../components/Badge";
 import { Table, Th, Td, Tr } from "../components/Table";
+import { formatDateTime } from "../lib/format";
+import {KpiCard} from "../components/KpiCard.tsx";
 
 export function StatusPage() {
   const { data: status, isLoading: statusLoading, error: statusError } = useGetStatusQuery();
@@ -31,7 +32,7 @@ export function StatusPage() {
   }
 
   const lastCapture = dashboard?.kpis.latestCaptureUtc
-    ? new Date(dashboard.kpis.latestCaptureUtc).toLocaleString()
+    ? formatDateTime(dashboard.kpis.latestCaptureUtc)
     : "Never";
 
   return (
@@ -83,10 +84,10 @@ export function StatusPage() {
                       {run.status}
                     </Badge>
                   </Td>
-                  <Td>{new Date(run.startedAtUtc).toLocaleString()}</Td>
+                  <Td>{formatDateTime(run.startedAtUtc)}</Td>
                   <Td>
                     {run.completedAtUtc
-                      ? new Date(run.completedAtUtc).toLocaleString()
+                      ? formatDateTime(run.completedAtUtc)
                       : "—"}
                   </Td>
                   <Td align="right">{run.eventCount}</Td>

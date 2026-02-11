@@ -397,6 +397,10 @@
   @apply flex flex-wrap items-center gap-2;
 }
 
+.row-end {
+  @apply flex flex-1 items-center justify-end gap-2;
+}
+
 /* ----------------------------------------------------------------
    TABS
    ---------------------------------------------------------------- */
@@ -777,4 +781,136 @@
 .ingest-summary__errors {
   color: var(--danger-text);
   font-weight: 500;
+}
+
+/* ---- Collapsible card ---- */
+
+.ingest-collapse-btn {
+  @apply flex items-center justify-center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  cursor: pointer;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  transition: background 150ms, transform 150ms;
+  flex-shrink: 0;
+}
+
+.ingest-collapse-btn:hover {
+  background: var(--surface-2);
+}
+
+.ingest-collapse-btn--open {
+  transform: rotate(90deg);
+}
+
+/* ---- Action menu (⋮) ---- */
+
+.ingest-action-wrap {
+  position: relative;
+}
+
+.ingest-action-btn {
+  @apply flex items-center justify-center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg-2);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: background 150ms, border-color 150ms;
+}
+
+.ingest-action-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.ingest-action-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 11rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow);
+  z-index: 50;
+  padding: 0.25rem;
+}
+
+.ingest-action-menu__item {
+  @apply flex items-center gap-2 w-full text-left text-sm;
+  padding: 0.375rem 0.625rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.ingest-action-menu__item:hover {
+  background: var(--surface-2);
+}
+
+.ingest-action-menu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---- Filter bar (inside catalog card) ---- */
+
+.ingest-filter-bar {
+  @apply flex flex-wrap items-end gap-3;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+
+.ingest-filter-bar .ingest-toggle {
+  padding: 0;
+  align-self: center;
+}
+
+.ingest-filter-bar .ingest-form__label {
+  min-width: auto;
+}
+
+.ingest-filter-bar .input {
+  width: 120px;
+}
+
+.ingest-filter-bar .input[type="number"] {
+  width: 80px;
+}
+
+/* ---- Wide dialog for logs ---- */
+
+.dialog--wide {
+  max-width: 48rem;
+}
+
+.dialog--wide .dialog__header {
+  @apply flex items-center justify-between gap-3;
+}
+
+.dialog--wide .dialog__body {
+  padding: 1rem 1.25rem;
+}
+
+/* ---- Clickable table rows ---- */
+
+.table__row--clickable {
+  cursor: pointer;
+}
+
+.table__row--clickable:hover {
+  background: var(--surface-2);
 }

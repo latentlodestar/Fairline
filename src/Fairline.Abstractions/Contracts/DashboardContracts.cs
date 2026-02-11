@@ -29,6 +29,7 @@ public sealed record EdgeComparisonRow(
     string AwayTeam,
     string SportKey,
     string SportTitle,
+    string SportGroup,
     string MarketType,
     string SelectionKey,
     decimal? BaselinePrice,

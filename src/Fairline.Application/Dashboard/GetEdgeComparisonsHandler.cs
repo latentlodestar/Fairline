@@ -14,6 +14,8 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
         CancellationToken ct = default)
     {
         var snapshots = await repo.GetLatestSnapshotsAsync(ct);
+        var catalog = await repo.GetSportCatalogAsync(ct);
+        var groupLookup = catalog.ToDictionary(c => c.NormalizedLeague, c => c.Group, StringComparer.OrdinalIgnoreCase);
 
         var kpis = new DashboardKpis(
             EventCount: snapshots.Select(s => s.SportEventId).Distinct().Count(),
@@ -31,7 +33,7 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
         foreach (var group in groups)
         {
             var items = group.ToList();
-            var row = BuildComparison(items, baselineBook, targetBook);
+            var row = BuildComparison(items, baselineBook, targetBook, groupLookup);
             if (row is null) continue;
             if (!showIncomplete && row.TargetPrice is null) continue;
             comparisons.Add(row);
@@ -50,11 +52,13 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
     internal static EdgeComparisonRow? BuildComparison(
         List<SnapshotWithEvent> items,
         string baselineBook,
-        string targetBook)
+        string targetBook,
+        Dictionary<string, string> groupLookup)
     {
         if (items.Count == 0) return null;
 
         var first = items[0];
+        var sportGroup = groupLookup.GetValueOrDefault(first.SportKey, "Other");
 
         var baseline = items.FirstOrDefault(i =>
             i.BookmakerKey.Equals(baselineBook, StringComparison.OrdinalIgnoreCase));
@@ -85,7 +89,7 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
                 {
                     return new EdgeComparisonRow(
                         first.SportEventId, first.HomeTeam, first.AwayTeam,
-                        first.SportKey, first.SportTitle,
+                        first.SportKey, first.SportTitle, sportGroup,
                         first.MarketKey, first.OutcomeName,
                         baseline.Price, baseline.Point, baselineDec, baseline.BookmakerKey,
                         target.Price, target.Point, targetDec, target.BookmakerKey,
@@ -118,7 +122,7 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
 
         return new EdgeComparisonRow(
             first.SportEventId, first.HomeTeam, first.AwayTeam,
-            first.SportKey, first.SportTitle,
+            first.SportKey, first.SportTitle, sportGroup,
             first.MarketKey, first.OutcomeName,
             baseline?.Price, baseline?.Point, baselineDec, baseline?.BookmakerKey,
             target?.Price, target?.Point, targetDec, target?.BookmakerKey ?? targetBook,

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { Card, CardBody, CardHeader } from "../components/Card";
 import { Badge } from "../components/Badge";
+import { Dialog } from "../components/Dialog";
 import { Table, Th, Td, Tr } from "../components/Table";
 import { cn } from "../lib/cn";
+import { formatDateTime, formatTime } from "../lib/format";
 import {
   api,
   useGetCatalogQuery,
@@ -11,6 +13,7 @@ import {
   useToggleTrackedLeagueMutation,
   useRunIngestionMutation,
   useGetRunsQuery,
+  useGetRunDetailQuery,
 } from "../api/api";
 import { useAppDispatch } from "../store";
 import type {
@@ -18,109 +21,6 @@ import type {
   SseProgressEvent,
   SseSummaryEvent,
 } from "../types";
-
-export function IngestionPage() {
-  return (
-    <div className="page">
-      <h1 className="section-title">Ingestion</h1>
-      <CatalogSection />
-      <RunIngestionSection />
-      <RecentRunsSection />
-    </div>
-  );
-}
-
-/* ----------------------------------------------------------------
-   CATALOG SECTION
-   ---------------------------------------------------------------- */
-
-function CatalogSection() {
-  const { data: catalog, isLoading } = useGetCatalogQuery();
-  const [refreshCatalog, { isLoading: isRefreshing }] =
-    useRefreshCatalogMutation();
-  const [toggleLeague] = useToggleTrackedLeagueMutation();
-  const [inSeasonOnly, setInSeasonOnly] = useState(false);
-
-  const trackedMap = new Map(
-    catalog?.trackedLeagues?.map((t) => [t.providerSportKey, t.enabled]) ?? [],
-  );
-
-  const sports = inSeasonOnly
-    ? (catalog?.sports ?? []).filter((s) => s.active)
-    : (catalog?.sports ?? []);
-
-  const grouped = new Map<string, typeof catalog.sports>();
-  for (const sport of sports) {
-    const group = sport.group;
-    if (!grouped.has(group)) grouped.set(group, []);
-    grouped.get(group)!.push(sport);
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <span>Sports Catalog</span>
-        <div className="ingest-catalog-actions">
-          <label className="ingest-toggle">
-            <input
-              type="checkbox"
-              checked={inSeasonOnly}
-              onChange={() => setInSeasonOnly((v) => !v)}
-            />
-            <span className="ingest-toggle__label">In Season Only</span>
-          </label>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={isRefreshing}
-            onClick={() => refreshCatalog()}
-          >
-            {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardBody>
-        {isLoading && <p className="ingest-muted">Loading catalog...</p>}
-        {!isLoading && grouped.size === 0 && (
-          <p className="ingest-muted">
-            No sports in catalog. Click &quot;Refresh Catalog&quot; to fetch
-            from the Odds API.
-          </p>
-        )}
-        {[...grouped.entries()].map(([group, sports]) => (
-          <div key={group} className="ingest-catalog-group">
-            <div className="ingest-catalog-group__title">{group}</div>
-            <div className="ingest-catalog-group__items">
-              {sports.map((sport) => {
-                const tracked = trackedMap.get(sport.providerSportKey) ?? false;
-                return (
-                  <label key={sport.providerSportKey} className="ingest-toggle">
-                    <input
-                      type="checkbox"
-                      checked={tracked}
-                      onChange={() =>
-                        toggleLeague({
-                          providerSportKey: sport.providerSportKey,
-                          enabled: !tracked,
-                        })
-                      }
-                    />
-                    <span className="ingest-toggle__label">
-                      {sport.title}
-                      {!sport.active && (
-                        <Badge variant="neutral">Off-season</Badge>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </CardBody>
-    </Card>
-  );
-}
 
 /* ----------------------------------------------------------------
    INGESTION PRESETS (localStorage)
@@ -169,19 +69,22 @@ function saveActivePresetName(name: string | null) {
 }
 
 /* ----------------------------------------------------------------
-   RUN INGESTION SECTION
+   MAIN PAGE
    ---------------------------------------------------------------- */
 
-function RunIngestionSection() {
+export function IngestionPage() {
+  // --- Preset state ---
   const [presets, setPresets] = useState(loadPresets);
   const [activePresetName, setActivePresetName] = useState(loadActivePresetName);
 
-  const initial = presets.find((p) => p.name === activePresetName) ?? DEFAULT_VALUES;
+  const initial =
+    presets.find((p) => p.name === activePresetName) ?? DEFAULT_VALUES;
   const [regions, setRegions] = useState(initial.regions);
   const [markets, setMarkets] = useState(initial.markets);
   const [books, setBooks] = useState(initial.books);
   const [windowHours, setWindowHours] = useState(initial.windowHours);
 
+  // --- SSE / run state ---
   const [runIngestion] = useRunIngestionMutation();
   const dispatch = useAppDispatch();
 
@@ -190,8 +93,12 @@ function RunIngestionSection() {
   const [progress, setProgress] = useState<SseProgressEvent | null>(null);
   const [summary, setSummary] = useState<SseSummaryEvent | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const logEndRef = useRef<HTMLDivElement>(null);
 
+  // --- Log modal state ---
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+
+  // --- Preset helpers ---
   const applyPreset = (name: string | null) => {
     const preset = presets.find((p) => p.name === name);
     const values = preset ?? DEFAULT_VALUES;
@@ -207,7 +114,13 @@ function RunIngestionSection() {
     const name = window.prompt("Preset name:", activePresetName ?? "");
     if (!name?.trim()) return;
     const trimmed = name.trim();
-    const preset: IngestionPreset = { name: trimmed, windowHours, regions, markets, books };
+    const preset: IngestionPreset = {
+      name: trimmed,
+      windowHours,
+      regions,
+      markets,
+      books,
+    };
     const next = presets.filter((p) => p.name !== trimmed).concat(preset);
     setPresets(next);
     savePresets(next);
@@ -224,14 +137,7 @@ function RunIngestionSection() {
     saveActivePresetName(null);
   };
 
-  const scrollToBottom = useCallback(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [logs, scrollToBottom]);
-
+  // --- SSE effect ---
   useEffect(() => {
     if (!activeRunId) return;
 
@@ -264,11 +170,14 @@ function RunIngestionSection() {
     return () => es.close();
   }, [activeRunId, dispatch]);
 
+  // --- Start ingestion ---
   const handleRun = async () => {
     setLogs([]);
     setProgress(null);
     setSummary(null);
     setIsRunning(true);
+    setSelectedRunId(null);
+    setLogModalOpen(true);
 
     const result = await runIngestion({
       windowHours,
@@ -289,150 +198,314 @@ function RunIngestionSection() {
     setActiveRunId(result.runId);
   };
 
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <span>Run Gap-Fill Ingestion</span>
-          <div className="ingest-preset-bar">
-            <select
-              className="input ingest-preset-bar__select"
-              value={activePresetName ?? ""}
-              onChange={(e) => applyPreset(e.target.value || null)}
-            >
-              <option value="">Defaults</option>
-              {presets.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" variant="secondary" onClick={handleSavePreset}>
-              Save
-            </Button>
-            {activePresetName && (
-              <Button size="sm" variant="secondary" onClick={handleDeletePreset}>
-                Delete
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardBody>
-          <div className="ingest-form">
-            <div className="ingest-form__row">
-              <label className="ingest-form__label">
-                Window (hours)
-                <input
-                  type="number"
-                  className="input"
-                  value={windowHours}
-                  onChange={(e) => setWindowHours(Number(e.target.value))}
-                  min={1}
-                  max={720}
-                />
-              </label>
-              <label className="ingest-form__label">
-                Regions
-                <input
-                  className="input"
-                  value={regions}
-                  onChange={(e) => setRegions(e.target.value)}
-                  placeholder="us,eu"
-                />
-              </label>
-              <label className="ingest-form__label">
-                Markets
-                <input
-                  className="input"
-                  value={markets}
-                  onChange={(e) => setMarkets(e.target.value)}
-                  placeholder="h2h,spreads,totals"
-                />
-              </label>
-              <label className="ingest-form__label">
-                Books
-                <input
-                  className="input"
-                  value={books}
-                  onChange={(e) => setBooks(e.target.value)}
-                  placeholder="draftkings,pinnacle"
-                />
-              </label>
-            </div>
-            <Button onClick={handleRun} disabled={isRunning}>
-              {isRunning ? "Running..." : "Start Ingestion"}
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+  // --- Open historical log ---
+  const openHistoricalLog = (runId: string) => {
+    setSelectedRunId(runId);
+    setLogModalOpen(true);
+  };
 
-      {(logs.length > 0 || isRunning) && (
-        <Card>
-          <CardHeader>
-            <span>Live Output</span>
-            {progress && (
-              <span className="ingest-progress-text">
-                {progress.current}/{progress.total} — {progress.message}
-              </span>
-            )}
-          </CardHeader>
-          <CardBody>
-            {progress && progress.total > 0 && (
-              <div className="ingest-progress-bar">
-                <div
-                  className="ingest-progress-bar__fill"
-                  style={{
-                    width: `${(progress.current / progress.total) * 100}%`,
-                  }}
-                />
-              </div>
-            )}
-            <div className="ingest-log">
-              {logs.map((log, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "ingest-log__entry",
-                    log.level === "Error" && "ingest-log__entry--error",
-                    log.level === "Warning" && "ingest-log__entry--warning",
-                  )}
-                >
-                  <span className="ingest-log__time">
-                    {new Date(log.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span className="ingest-log__msg">{log.message}</span>
-                </div>
-              ))}
-              <div ref={logEndRef} />
-            </div>
-            {summary && (
-              <div className="ingest-summary">
-                <Badge variant={summary.errorCount > 0 ? "danger" : "success"}>
-                  {summary.errorCount > 0 ? "Completed with errors" : "Success"}
-                </Badge>
-                <span>
-                  {summary.requestCount} requests, {summary.eventCount} events,{" "}
-                  {summary.snapshotCount} snapshots
-                </span>
-                {summary.errorCount > 0 && (
-                  <span className="ingest-summary__errors">
-                    {summary.errorCount} error(s)
-                  </span>
-                )}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      )}
-    </>
+  const closeLogModal = () => {
+    setLogModalOpen(false);
+    // Don't clear selectedRunId/activeRunId immediately so Dialog closing animation can finish
+  };
+
+  return (
+    <div className="page">
+      <h1 className="section-title">Ingestion</h1>
+
+      <CatalogSection
+        onRun={handleRun}
+        isRunning={isRunning}
+        presets={presets}
+        activePresetName={activePresetName}
+        applyPreset={applyPreset}
+        handleSavePreset={handleSavePreset}
+        handleDeletePreset={handleDeletePreset}
+        windowHours={windowHours}
+        setWindowHours={setWindowHours}
+        regions={regions}
+        setRegions={setRegions}
+        markets={markets}
+        setMarkets={setMarkets}
+        books={books}
+        setBooks={setBooks}
+      />
+
+      <RecentRunsSection onSelectRun={openHistoricalLog} />
+
+      <IngestionLogDialog
+        open={logModalOpen}
+        onClose={closeLogModal}
+        // Live mode
+        isLive={selectedRunId === null}
+        isRunning={isRunning}
+        logs={logs}
+        progress={progress}
+        summary={summary}
+        // Historical mode
+        selectedRunId={selectedRunId}
+      />
+    </div>
   );
 }
 
 /* ----------------------------------------------------------------
-   RECENT RUNS SECTION
+   CATALOG SECTION (collapsible, with action menu + filter bar)
    ---------------------------------------------------------------- */
 
-function RecentRunsSection() {
+interface CatalogSectionProps {
+  onRun: () => void;
+  isRunning: boolean;
+  presets: IngestionPreset[];
+  activePresetName: string | null;
+  applyPreset: (name: string | null) => void;
+  handleSavePreset: () => void;
+  handleDeletePreset: () => void;
+  windowHours: number;
+  setWindowHours: (v: number) => void;
+  regions: string;
+  setRegions: (v: string) => void;
+  markets: string;
+  setMarkets: (v: string) => void;
+  books: string;
+  setBooks: (v: string) => void;
+}
+
+function CatalogSection({
+  onRun,
+  isRunning,
+  presets,
+  activePresetName,
+  applyPreset,
+  handleSavePreset,
+  handleDeletePreset,
+  windowHours,
+  setWindowHours,
+  regions,
+  setRegions,
+  markets,
+  setMarkets,
+  books,
+  setBooks,
+}: CatalogSectionProps) {
+  const { data: catalog, isLoading } = useGetCatalogQuery();
+  const [refreshCatalog, { isLoading: isRefreshing }] =
+    useRefreshCatalogMutation();
+  const [toggleLeague] = useToggleTrackedLeagueMutation();
+
+  const [inSeasonOnly, setInSeasonOnly] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const trackedMap = new Map(
+    catalog?.trackedLeagues?.map((t) => [t.providerSportKey, t.enabled]) ?? [],
+  );
+
+  const sports = inSeasonOnly
+    ? (catalog?.sports ?? []).filter((s) => s.active)
+    : (catalog?.sports ?? []);
+
+  const grouped = new Map<string, typeof sports>();
+  for (const sport of sports) {
+    const group = sport.group;
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group)!.push(sport);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="ingest-catalog-actions">
+          <button
+            className={cn(
+              "ingest-collapse-btn",
+              !collapsed && "ingest-collapse-btn--open",
+            )}
+            onClick={() => setCollapsed((v) => !v)}
+            aria-label={collapsed ? "Expand catalog" : "Collapse catalog"}
+          >
+            ▸
+          </button>
+          <span>Sports Catalog</span>
+        </div>
+        <div className="ingest-action-wrap" ref={menuRef}>
+          <button
+            className="ingest-action-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Actions"
+          >
+            ⋮
+          </button>
+          {menuOpen && (
+            <div className="ingest-action-menu">
+              <button
+                className="ingest-action-menu__item"
+                disabled={isRefreshing}
+                onClick={() => {
+                  refreshCatalog();
+                  setMenuOpen(false);
+                }}
+              >
+                {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
+              </button>
+              <button
+                className="ingest-action-menu__item"
+                disabled={isRunning}
+                onClick={() => {
+                  onRun();
+                  setMenuOpen(false);
+                }}
+              >
+                {isRunning ? "Running..." : "Start Ingestion"}
+              </button>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      {/* Filter bar */}
+      <div className="ingest-filter-bar">
+        <label className="ingest-toggle">
+          <input
+            type="checkbox"
+            checked={inSeasonOnly}
+            onChange={() => setInSeasonOnly((v) => !v)}
+          />
+          <span className="ingest-toggle__label">In Season Only</span>
+        </label>
+
+        <select
+          className="input ingest-preset-bar__select"
+          value={activePresetName ?? ""}
+          onChange={(e) => applyPreset(e.target.value || null)}
+        >
+          <option value="">Defaults</option>
+          {presets.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <Button size="sm" variant="secondary" onClick={handleSavePreset}>
+          Save
+        </Button>
+        {activePresetName && (
+          <Button size="sm" variant="secondary" onClick={handleDeletePreset}>
+            Delete
+          </Button>
+        )}
+
+        <label className="ingest-form__label">
+          Window
+          <input
+            type="number"
+            className="input"
+            value={windowHours}
+            onChange={(e) => setWindowHours(Number(e.target.value))}
+            min={1}
+            max={720}
+          />
+        </label>
+        <label className="ingest-form__label">
+          Regions
+          <input
+            className="input"
+            value={regions}
+            onChange={(e) => setRegions(e.target.value)}
+            placeholder="us,eu"
+          />
+        </label>
+        <label className="ingest-form__label">
+          Markets
+          <input
+            className="input"
+            value={markets}
+            onChange={(e) => setMarkets(e.target.value)}
+            placeholder="h2h,spreads,totals"
+          />
+        </label>
+        <label className="ingest-form__label">
+          Books
+          <input
+            className="input"
+            value={books}
+            onChange={(e) => setBooks(e.target.value)}
+            placeholder="draftkings,pinnacle"
+          />
+        </label>
+      </div>
+
+      {/* Collapsible body */}
+      {!collapsed && (
+        <CardBody>
+          {isLoading && <p className="ingest-muted">Loading catalog...</p>}
+          {!isLoading && grouped.size === 0 && (
+            <p className="ingest-muted">
+              No sports in catalog. Use the ⋮ menu to refresh from the Odds API.
+            </p>
+          )}
+          {[...grouped.entries()].map(([group, sports]) => (
+            <div key={group} className="ingest-catalog-group">
+              <div className="ingest-catalog-group__title">{group}</div>
+              <div className="ingest-catalog-group__items">
+                {sports.map((sport) => {
+                  const tracked =
+                    trackedMap.get(sport.providerSportKey) ?? false;
+                  return (
+                    <label
+                      key={sport.providerSportKey}
+                      className="ingest-toggle"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={tracked}
+                        onChange={() =>
+                          toggleLeague({
+                            providerSportKey: sport.providerSportKey,
+                            enabled: !tracked,
+                          })
+                        }
+                      />
+                      <span className="ingest-toggle__label">
+                        {sport.title}
+                        {!sport.active && (
+                          <Badge variant="neutral">Off-season</Badge>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </CardBody>
+      )}
+    </Card>
+  );
+}
+
+/* ----------------------------------------------------------------
+   RECENT RUNS SECTION (clickable rows)
+   ---------------------------------------------------------------- */
+
+function RecentRunsSection({
+  onSelectRun,
+}: {
+  onSelectRun: (runId: string) => void;
+}) {
   const { data: runs, isLoading } = useGetRunsQuery(20);
 
   return (
@@ -463,7 +536,11 @@ function RecentRunsSection() {
           </thead>
           <tbody>
             {runs.map((run) => (
-              <Tr key={run.id}>
+              <Tr
+                key={run.id}
+                className="table__row--clickable"
+                onClick={() => onSelectRun(run.id)}
+              >
                 <Td>
                   <Badge variant="neutral">{run.runType}</Badge>
                 </Td>
@@ -480,7 +557,7 @@ function RecentRunsSection() {
                     {run.status}
                   </Badge>
                 </Td>
-                <Td>{new Date(run.startedAtUtc).toLocaleString()}</Td>
+                <Td>{formatDateTime(run.startedAtUtc)}</Td>
                 <Td align="right">{run.requestCount}</Td>
                 <Td align="right">{run.eventCount}</Td>
                 <Td align="right">{run.snapshotCount}</Td>
@@ -491,5 +568,193 @@ function RecentRunsSection() {
         </Table>
       )}
     </Card>
+  );
+}
+
+/* ----------------------------------------------------------------
+   INGESTION LOG DIALOG (live SSE or historical)
+   ---------------------------------------------------------------- */
+
+interface IngestionLogDialogProps {
+  open: boolean;
+  onClose: () => void;
+  // Live mode
+  isLive: boolean;
+  isRunning: boolean;
+  logs: SseLogEvent[];
+  progress: SseProgressEvent | null;
+  summary: SseSummaryEvent | null;
+  // Historical mode
+  selectedRunId: string | null;
+}
+
+function IngestionLogDialog({
+  open,
+  onClose,
+  isLive,
+  isRunning,
+  logs,
+  progress,
+  summary,
+  selectedRunId,
+}: IngestionLogDialogProps) {
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Auto-scroll on new live logs
+  useEffect(() => {
+    if (isLive) scrollToBottom();
+  }, [logs, isLive, scrollToBottom]);
+
+  if (isLive) {
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        className="dialog--wide"
+        title={
+          <>
+            <span>Ingestion Log</span>
+            {isRunning ? (
+              <Badge variant="warning">Running</Badge>
+            ) : summary ? (
+              <Badge variant={summary.errorCount > 0 ? "danger" : "success"}>
+                {summary.errorCount > 0 ? "Completed with errors" : "Success"}
+              </Badge>
+            ) : null}
+          </>
+        }
+        footer={
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        }
+      >
+        {progress && progress.total > 0 && (
+          <div className="ingest-progress-bar">
+            <div
+              className="ingest-progress-bar__fill"
+              style={{
+                width: `${(progress.current / progress.total) * 100}%`,
+              }}
+            />
+          </div>
+        )}
+        {progress && (
+          <p className="ingest-progress-text" style={{ marginBottom: "0.5rem" }}>
+            {progress.current}/{progress.total} — {progress.message}
+          </p>
+        )}
+        <div className="ingest-log">
+          {logs.map((log, i) => (
+            <div
+              key={i}
+              className={cn(
+                "ingest-log__entry",
+                log.level === "Error" && "ingest-log__entry--error",
+                log.level === "Warning" && "ingest-log__entry--warning",
+              )}
+            >
+              <span className="ingest-log__time">
+                {formatTime(log.timestamp)}
+              </span>
+              <span className="ingest-log__msg">{log.message}</span>
+            </div>
+          ))}
+          <div ref={logEndRef} />
+        </div>
+        {summary && (
+          <div className="ingest-summary">
+            <span>
+              {summary.requestCount} requests, {summary.eventCount} events,{" "}
+              {summary.snapshotCount} snapshots
+            </span>
+            {summary.errorCount > 0 && (
+              <span className="ingest-summary__errors">
+                {summary.errorCount} error(s)
+              </span>
+            )}
+          </div>
+        )}
+      </Dialog>
+    );
+  }
+
+  // Historical mode
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      className="dialog--wide"
+      title={<span>Ingestion Log</span>}
+      footer={
+        <Button size="sm" variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      {selectedRunId && <HistoricalLogContent runId={selectedRunId} />}
+    </Dialog>
+  );
+}
+
+function HistoricalLogContent({ runId }: { runId: string }) {
+  const { data: detail, isLoading } = useGetRunDetailQuery(runId);
+
+  if (isLoading) {
+    return <p className="ingest-muted">Loading logs...</p>;
+  }
+
+  if (!detail) {
+    return <p className="ingest-muted">Run not found.</p>;
+  }
+
+  return (
+    <>
+      <div style={{ marginBottom: "0.75rem" }}>
+        <Badge
+          variant={
+            detail.status === "Completed"
+              ? "success"
+              : detail.status === "Failed"
+                ? "danger"
+                : "warning"
+          }
+        >
+          {detail.status}
+        </Badge>
+      </div>
+      <div className="ingest-log">
+        {detail.logs.map((log, i) => (
+          <div
+            key={i}
+            className={cn(
+              "ingest-log__entry",
+              log.level === "Error" && "ingest-log__entry--error",
+              log.level === "Warning" && "ingest-log__entry--warning",
+            )}
+          >
+            <span className="ingest-log__time">
+              {formatTime(log.createdAtUtc)}
+            </span>
+            <span className="ingest-log__msg">{log.message}</span>
+          </div>
+        ))}
+      </div>
+      <div className="ingest-summary">
+        <span>
+          {detail.requestCount} requests, {detail.eventCount} events,{" "}
+          {detail.snapshotCount} snapshots
+        </span>
+        {detail.errorCount > 0 && (
+          <span className="ingest-summary__errors">
+            {detail.errorCount} error(s)
+          </span>
+        )}
+      </div>
+    </>
   );
 }

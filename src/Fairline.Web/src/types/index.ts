@@ -141,6 +141,7 @@ export interface EdgeComparisonRow {
   awayTeam: string;
   sportKey: string;
   sportTitle: string;
+  sportGroup: string;
   marketType: string;
   selectionKey: string;
   baselinePrice: number | null;

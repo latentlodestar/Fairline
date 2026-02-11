@@ -7,7 +7,6 @@ import { Table, Th, Td, Tr } from "../components/Table";
 import { Tabs } from "../components/Tabs";
 import { Dialog } from "../components/Dialog";
 import { Toast } from "../components/Toast";
-import { KpiCard } from "../components/KpiCard";
 
 export function StyleGuidePage() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -66,22 +65,6 @@ export function StyleGuidePage() {
             <option>Option A</option>
             <option>Option B</option>
           </Select>
-        </div>
-      </section>
-
-      {/* KPI Cards */}
-      <section className="guide-section">
-        <h3 className="guide-section__title">KPI Cards</h3>
-        <div className="kpi-strip">
-          <KpiCard label="Metric" value="1,247" />
-          <KpiCard label="Positive" value="83" trend="up" delta="+12" />
-          <KpiCard label="Negative" value="214" trend="down" delta="-8" />
-          <KpiCard
-            label="Neutral"
-            value="2.4%"
-            trend="neutral"
-            delta={"\u00B10.1%"}
-          />
         </div>
       </section>
 
