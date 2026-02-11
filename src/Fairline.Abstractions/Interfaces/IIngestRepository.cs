@@ -31,4 +31,7 @@ public interface IIngestRepository
     // Queries
     Task<IReadOnlyList<IngestRunSummary>> GetRecentRunsAsync(int limit = 20, CancellationToken ct = default);
     Task<IngestRunDetail?> GetRunDetailAsync(Guid runId, CancellationToken ct = default);
+
+    // Dashboard
+    Task<IReadOnlyList<SnapshotWithEvent>> GetLatestSnapshotsAsync(CancellationToken ct = default);
 }

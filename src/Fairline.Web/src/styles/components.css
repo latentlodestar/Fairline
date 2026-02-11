@@ -589,6 +589,10 @@
   color: var(--muted);
 }
 
+.ingest-catalog-actions {
+  @apply flex items-center gap-3;
+}
+
 .ingest-catalog-group {
   margin-bottom: 1rem;
 }
@@ -629,6 +633,15 @@
 
 .ingest-toggle__label {
   @apply flex items-center gap-1.5;
+}
+
+.ingest-preset-bar {
+  @apply flex items-center gap-2;
+}
+
+.ingest-preset-bar__select {
+  min-width: 140px;
+  font-size: 0.8125rem;
 }
 
 .ingest-form {

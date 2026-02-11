@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Fairline.Application.Dashboard;
 using Fairline.Application.Ingest;
 using Fairline.Application.Modeling;
 using Fairline.Application.Status;
@@ -9,6 +10,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<GetDashboardHandler>();
         services.AddScoped<GetProvidersHandler>();
         services.AddScoped<GetScenariosHandler>();
         services.AddScoped<GetStatusHandler>();

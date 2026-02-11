@@ -98,3 +98,30 @@ export interface SseSummaryEvent {
   snapshotCount: number;
   errorCount: number;
 }
+
+// Dashboard
+export interface DashboardResponse {
+  kpis: DashboardKpis;
+  edges: EdgeRow[];
+}
+export interface DashboardKpis {
+  eventCount: number;
+  snapshotCount: number;
+  bookCount: number;
+  latestCaptureUtc: string | null;
+}
+export interface EdgeRow {
+  sportEventId: string;
+  homeTeam: string;
+  awayTeam: string;
+  sportKey: string;
+  sportTitle: string;
+  marketKey: string;
+  outcomeName: string;
+  bookmakerKey: string;
+  bookmakerTitle: string;
+  fairLine: number;
+  bookLine: number;
+  edgePct: number;
+  signal: "value" | "tax" | "fair";
+}

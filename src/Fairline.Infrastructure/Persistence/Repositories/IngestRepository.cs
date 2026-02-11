@@ -205,6 +205,28 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<SnapshotWithEvent>> GetLatestSnapshotsAsync(CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var rows = await (
+            from s in db.OddsSnapshots.AsNoTracking()
+            join e in db.SportEvents.AsNoTracking() on s.SportEventId equals e.Id
+            where e.CommenceTimeUtc > now
+            orderby s.CapturedAtUtc descending
+            select new SnapshotWithEvent(
+                e.Id, e.HomeTeam, e.AwayTeam, e.SportKey, e.SportTitle,
+                s.BookmakerKey, s.BookmakerTitle, s.MarketKey, s.OutcomeName,
+                s.Price, s.Point, s.CapturedAtUtc)
+        ).ToListAsync(ct);
+
+        // Deduplicate: keep latest per (event, market, outcome, book)
+        return rows
+            .GroupBy(r => (r.SportEventId, r.MarketKey, r.OutcomeName, r.BookmakerKey))
+            .Select(g => g.First()) // already ordered by CapturedAtUtc desc
+            .ToList();
+    }
+
     public async Task<IngestRunDetail?> GetRunDetailAsync(Guid runId, CancellationToken ct)
     {
         var run = await db.IngestRuns

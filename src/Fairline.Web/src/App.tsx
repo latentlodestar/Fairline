@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { DashboardPage } from "./pages/DashboardPage";
 import { IngestionPage } from "./pages/IngestionPage";
@@ -6,43 +6,41 @@ import { StatusPage } from "./pages/StatusPage";
 import { StyleGuidePage } from "./pages/StyleGuidePage";
 import { cn } from "./lib/cn";
 
-type Page = "dashboard" | "ingestion" | "status" | "styleguide";
+const navItems = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/ingestion", label: "Ingestion" },
+  { to: "/status", label: "Status" },
+  { to: "/style-guide", label: "Style Guide" },
+] as const;
 
 export default function App() {
-  const [page, setPage] = useState<Page>("dashboard");
-
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar__brand">Fairline</div>
         <nav className="topbar__nav">
-          {(
-            [
-              ["dashboard", "Dashboard"],
-              ["ingestion", "Ingestion"],
-              ["status", "Status"],
-              ["styleguide", "Style Guide"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              className={cn(
-                "topbar__link",
-                page === key && "topbar__link--active",
-              )}
-              onClick={() => setPage(key)}
+          {navItems.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn("topbar__link", isActive && "topbar__link--active")
+              }
             >
               {label}
-            </button>
+            </NavLink>
           ))}
         </nav>
         <ThemeToggle />
       </header>
       <main className="main-content">
-        {page === "dashboard" && <DashboardPage />}
-        {page === "ingestion" && <IngestionPage />}
-        {page === "status" && <StatusPage />}
-        {page === "styleguide" && <StyleGuidePage />}
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/ingestion" element={<IngestionPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/style-guide" element={<StyleGuidePage />} />
+        </Routes>
       </main>
     </div>
   );

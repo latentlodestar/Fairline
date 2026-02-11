@@ -3,6 +3,7 @@ import type {
   ApiStatusResponse,
   CatalogRefreshResult,
   CatalogResponse,
+  DashboardResponse,
   IngestRunDetail,
   IngestRunSummary,
   ProviderInfo,
@@ -46,7 +47,6 @@ export const api = createApi({
     }),
     runIngestion: builder.mutation<{ runId: string }, RunIngestionRequest>({
       query: (body) => ({ url: "/api/ingest/run", method: "POST", body }),
-      invalidatesTags: ["Runs"],
     }),
     getRuns: builder.query<IngestRunSummary[], number | void>({
       query: (limit) => `/api/ingest/runs${limit ? `?limit=${limit}` : ""}`,
@@ -54,6 +54,11 @@ export const api = createApi({
     }),
     getRunDetail: builder.query<IngestRunDetail, string>({
       query: (runId) => `/api/ingest/runs/${runId}`,
+    }),
+
+    // Dashboard
+    getDashboard: builder.query<DashboardResponse, void>({
+      query: () => "/api/dashboard",
     }),
   }),
 });
@@ -68,4 +73,5 @@ export const {
   useRunIngestionMutation,
   useGetRunsQuery,
   useGetRunDetailQuery,
+  useGetDashboardQuery,
 } = api;

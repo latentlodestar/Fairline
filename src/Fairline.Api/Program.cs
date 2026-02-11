@@ -26,6 +26,7 @@ app.MapDefaultEndpoints();
 app.MapStatusEndpoints();
 app.MapIngestEndpoints();
 app.MapModelingEndpoints();
+app.MapDashboardEndpoints();
 
 app.Run();
 

@@ -1,79 +1,130 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useGetDashboardQuery } from "../api/api";
 import { KpiCard } from "../components/KpiCard";
 import { Badge } from "../components/Badge";
 import { Table, Th, Td, Tr } from "../components/Table";
 import { Select, Input } from "../components/Input";
+import type { EdgeRow } from "../types";
 
-const PLACEHOLDER_EDGES = [
-  { id: 1, event: "LAL vs BOS", market: "Spread", book: "FanDuel", fairLine: "-3.5", bookLine: "-4.5", edge: "+2.8%", type: "value" as const },
-  { id: 2, event: "LAL vs BOS", market: "Total", book: "DraftKings", fairLine: "218.5", bookLine: "217", edge: "-1.4%", type: "tax" as const },
-  { id: 3, event: "NYK vs MIA", market: "ML", book: "BetMGM", fairLine: "-145", bookLine: "-155", edge: "-3.2%", type: "tax" as const },
-  { id: 4, event: "NYK vs MIA", market: "Spread", book: "Caesars", fairLine: "-2.5", bookLine: "-2.5", edge: "+0.1%", type: "neutral" as const },
-  { id: 5, event: "GSW vs DEN", market: "ML", book: "FanDuel", fairLine: "+180", bookLine: "+195", edge: "+4.1%", type: "value" as const },
-  { id: 6, event: "GSW vs DEN", market: "Total", book: "DraftKings", fairLine: "226", bookLine: "224.5", edge: "-0.8%", type: "neutral" as const },
-  { id: 7, event: "PHI vs MIL", market: "Spread", book: "BetMGM", fairLine: "+1.5", bookLine: "+1", edge: "-2.1%", type: "tax" as const },
-  { id: 8, event: "PHI vs MIL", market: "ML", book: "Caesars", fairLine: "+115", bookLine: "+125", edge: "+3.5%", type: "value" as const },
-];
+function formatMarket(key: string): string {
+  switch (key) {
+    case "h2h": return "ML";
+    case "spreads": return "Spread";
+    case "totals": return "Total";
+    default: return key;
+  }
+}
+
+function formatLine(row: EdgeRow, value: number): string {
+  if (row.marketKey === "h2h") {
+    return value >= 0 ? `+${Math.round(value)}` : `${Math.round(value)}`;
+  }
+  return String(value);
+}
+
+function formatEdge(pct: number): string {
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct.toFixed(2)}%`;
+}
 
 export function DashboardPage() {
+  const { data, isLoading, error } = useGetDashboardQuery();
   const [sport, setSport] = useState("all");
+  const [market, setMarket] = useState("all");
+  const [book, setBook] = useState("all");
   const [search, setSearch] = useState("");
 
-  const filtered = PLACEHOLDER_EDGES.filter(
-    (e) =>
-      (sport === "all" || true) &&
-      (search === "" ||
-        e.event.toLowerCase().includes(search.toLowerCase())),
-  );
+  const sports = useMemo(() => {
+    if (!data) return [];
+    const unique = [...new Set(data.edges.map((e) => e.sportKey))];
+    return unique.sort();
+  }, [data]);
+
+  const markets = useMemo(() => {
+    if (!data) return [];
+    const unique = [...new Set(data.edges.map((e) => e.marketKey))];
+    return unique.sort();
+  }, [data]);
+
+  const books = useMemo(() => {
+    if (!data) return [];
+    const unique = new Map<string, string>();
+    for (const e of data.edges) {
+      if (!unique.has(e.bookmakerKey)) {
+        unique.set(e.bookmakerKey, e.bookmakerTitle);
+      }
+    }
+    return [...unique.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const q = search.toLowerCase();
+    return data.edges.filter((e) => {
+      if (sport !== "all" && e.sportKey !== sport) return false;
+      if (market !== "all" && e.marketKey !== market) return false;
+      if (book !== "all" && e.bookmakerKey !== book) return false;
+      if (q && !`${e.homeTeam} ${e.awayTeam}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [data, sport, market, book, search]);
+
+  if (isLoading) {
+    return (
+      <div className="page">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page">
+        <p>{"status" in error ? `Error: HTTP ${error.status}` : "Failed to load dashboard"}</p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="dashboard">
       <div className="kpi-strip">
-        <KpiCard label="Markets Tracked" value="1,247" />
+        <KpiCard label="Events" value={data.kpis.eventCount} />
+        <KpiCard label="Snapshots" value={data.kpis.snapshotCount.toLocaleString()} />
+        <KpiCard label="Books" value={data.kpis.bookCount} />
         <KpiCard
-          label="Value Edges"
-          value="83"
-          trend="up"
-          delta="+12 today"
-        />
-        <KpiCard
-          label="Tax Alerts"
-          value="214"
-          trend="down"
-          delta="-8 today"
-        />
-        <KpiCard
-          label="Avg. Edge"
-          value="2.4%"
-          trend="neutral"
-          delta="\u00B10.1%"
+          label="Last Capture"
+          value={
+            data.kpis.latestCaptureUtc
+              ? new Date(data.kpis.latestCaptureUtc).toLocaleString()
+              : "N/A"
+          }
         />
       </div>
 
       <div className="filter-bar">
         <Select value={sport} onChange={(e) => setSport(e.target.value)}>
           <option value="all">All Sports</option>
-          <option value="nba">NBA</option>
-          <option value="nfl">NFL</option>
-          <option value="mlb">MLB</option>
-          <option value="nhl">NHL</option>
+          {sports.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </Select>
-        <Select>
+        <Select value={market} onChange={(e) => setMarket(e.target.value)}>
           <option value="all">All Markets</option>
-          <option value="spread">Spread</option>
-          <option value="ml">Moneyline</option>
-          <option value="total">Total</option>
+          {markets.map((m) => (
+            <option key={m} value={m}>{formatMarket(m)}</option>
+          ))}
         </Select>
-        <Select>
+        <Select value={book} onChange={(e) => setBook(e.target.value)}>
           <option value="all">All Books</option>
-          <option value="fanduel">FanDuel</option>
-          <option value="draftkings">DraftKings</option>
-          <option value="betmgm">BetMGM</option>
-          <option value="caesars">Caesars</option>
+          {books.map(([key, title]) => (
+            <option key={key} value={key}>{title}</option>
+          ))}
         </Select>
         <Input
           type="search"
-          placeholder="Search events 2026"
+          placeholder="Search events..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -84,57 +135,69 @@ export function DashboardPage() {
           <span>Edge Scanner</span>
           <Badge variant="neutral">{filtered.length} results</Badge>
         </div>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Event</Th>
-              <Th>Market</Th>
-              <Th>Book</Th>
-              <Th align="right">Fair Line</Th>
-              <Th align="right">Book Line</Th>
-              <Th align="right">Edge</Th>
-              <Th>Signal</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row) => (
-              <Tr
-                key={row.id}
-                variant={
-                  row.type === "value"
-                    ? "value"
-                    : row.type === "tax"
-                      ? "tax"
-                      : undefined
-                }
-              >
-                <Td>{row.event}</Td>
-                <Td>{row.market}</Td>
-                <Td>{row.book}</Td>
-                <Td align="right">{row.fairLine}</Td>
-                <Td align="right">{row.bookLine}</Td>
-                <Td align="right">{row.edge}</Td>
-                <Td>
-                  <Badge
-                    variant={
-                      row.type === "value"
-                        ? "success"
-                        : row.type === "tax"
-                          ? "danger"
-                          : "neutral"
-                    }
-                  >
-                    {row.type === "value"
-                      ? "Value"
-                      : row.type === "tax"
-                        ? "Tax"
-                        : "Fair"}
-                  </Badge>
-                </Td>
-              </Tr>
-            ))}
-          </tbody>
-        </Table>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "var(--space-4)" }}>
+            <p className="placeholder">
+              {data.edges.length === 0
+                ? "No ingested odds data yet. Run an ingestion first."
+                : "No edges match your filters."}
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>Event</Th>
+                <Th>Outcome</Th>
+                <Th>Market</Th>
+                <Th>Book</Th>
+                <Th align="right">Fair Line</Th>
+                <Th align="right">Book Line</Th>
+                <Th align="right">Edge</Th>
+                <Th>Signal</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row, i) => (
+                <Tr
+                  key={`${row.sportEventId}-${row.marketKey}-${row.outcomeName}-${row.bookmakerKey}`}
+                  variant={
+                    row.signal === "value"
+                      ? "value"
+                      : row.signal === "tax"
+                        ? "tax"
+                        : undefined
+                  }
+                >
+                  <Td>{row.homeTeam} vs {row.awayTeam}</Td>
+                  <Td>{row.outcomeName}</Td>
+                  <Td>{formatMarket(row.marketKey)}</Td>
+                  <Td>{row.bookmakerTitle}</Td>
+                  <Td align="right">{formatLine(row, row.fairLine)}</Td>
+                  <Td align="right">{formatLine(row, row.bookLine)}</Td>
+                  <Td align="right">{formatEdge(row.edgePct)}</Td>
+                  <Td>
+                    <Badge
+                      variant={
+                        row.signal === "value"
+                          ? "success"
+                          : row.signal === "tax"
+                            ? "danger"
+                            : "neutral"
+                      }
+                    >
+                      {row.signal === "value"
+                        ? "Value"
+                        : row.signal === "tax"
+                          ? "Tax"
+                          : "Fair"}
+                    </Badge>
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </div>
     </div>
   );

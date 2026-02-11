@@ -5,12 +5,14 @@ import { Badge } from "../components/Badge";
 import { Table, Th, Td, Tr } from "../components/Table";
 import { cn } from "../lib/cn";
 import {
+  api,
   useGetCatalogQuery,
   useRefreshCatalogMutation,
   useToggleTrackedLeagueMutation,
   useRunIngestionMutation,
   useGetRunsQuery,
 } from "../api/api";
+import { useAppDispatch } from "../store";
 import type {
   SseLogEvent,
   SseProgressEvent,
@@ -37,13 +39,18 @@ function CatalogSection() {
   const [refreshCatalog, { isLoading: isRefreshing }] =
     useRefreshCatalogMutation();
   const [toggleLeague] = useToggleTrackedLeagueMutation();
+  const [inSeasonOnly, setInSeasonOnly] = useState(false);
 
   const trackedMap = new Map(
     catalog?.trackedLeagues?.map((t) => [t.providerSportKey, t.enabled]) ?? [],
   );
 
+  const sports = inSeasonOnly
+    ? (catalog?.sports ?? []).filter((s) => s.active)
+    : (catalog?.sports ?? []);
+
   const grouped = new Map<string, typeof catalog.sports>();
-  for (const sport of catalog?.sports ?? []) {
+  for (const sport of sports) {
     const group = sport.group;
     if (!grouped.has(group)) grouped.set(group, []);
     grouped.get(group)!.push(sport);
@@ -53,14 +60,24 @@ function CatalogSection() {
     <Card>
       <CardHeader>
         <span>Sports Catalog</span>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={isRefreshing}
-          onClick={() => refreshCatalog()}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
-        </Button>
+        <div className="ingest-catalog-actions">
+          <label className="ingest-toggle">
+            <input
+              type="checkbox"
+              checked={inSeasonOnly}
+              onChange={() => setInSeasonOnly((v) => !v)}
+            />
+            <span className="ingest-toggle__label">In Season Only</span>
+          </label>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={isRefreshing}
+            onClick={() => refreshCatalog()}
+          >
+            {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
+          </Button>
+        </div>
       </CardHeader>
       <CardBody>
         {isLoading && <p className="ingest-muted">Loading catalog...</p>}
@@ -106,16 +123,67 @@ function CatalogSection() {
 }
 
 /* ----------------------------------------------------------------
+   INGESTION PRESETS (localStorage)
+   ---------------------------------------------------------------- */
+
+interface IngestionPreset {
+  name: string;
+  windowHours: number;
+  regions: string;
+  markets: string;
+  books: string;
+}
+
+const PRESETS_KEY = "fairline:ingestion-presets";
+const ACTIVE_PRESET_KEY = "fairline:ingestion-active-preset";
+
+const DEFAULT_VALUES: Omit<IngestionPreset, "name"> = {
+  windowHours: 72,
+  regions: "us",
+  markets: "h2h,spreads,totals",
+  books: "draftkings,pinnacle",
+};
+
+function loadPresets(): IngestionPreset[] {
+  try {
+    return JSON.parse(localStorage.getItem(PRESETS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets: IngestionPreset[]) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
+function loadActivePresetName(): string | null {
+  return localStorage.getItem(ACTIVE_PRESET_KEY);
+}
+
+function saveActivePresetName(name: string | null) {
+  if (name) {
+    localStorage.setItem(ACTIVE_PRESET_KEY, name);
+  } else {
+    localStorage.removeItem(ACTIVE_PRESET_KEY);
+  }
+}
+
+/* ----------------------------------------------------------------
    RUN INGESTION SECTION
    ---------------------------------------------------------------- */
 
 function RunIngestionSection() {
-  const [regions, setRegions] = useState("us");
-  const [markets, setMarkets] = useState("h2h,spreads,totals");
-  const [books, setBooks] = useState("draftkings,pinnacle");
-  const [windowHours, setWindowHours] = useState(72);
+  const [presets, setPresets] = useState(loadPresets);
+  const [activePresetName, setActivePresetName] = useState(loadActivePresetName);
+
+  const initial = presets.find((p) => p.name === activePresetName) ?? DEFAULT_VALUES;
+  const [regions, setRegions] = useState(initial.regions);
+  const [markets, setMarkets] = useState(initial.markets);
+  const [books, setBooks] = useState(initial.books);
+  const [windowHours, setWindowHours] = useState(initial.windowHours);
 
   const [runIngestion] = useRunIngestionMutation();
+  const dispatch = useAppDispatch();
 
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [logs, setLogs] = useState<SseLogEvent[]>([]);
@@ -123,6 +191,38 @@ function RunIngestionSection() {
   const [summary, setSummary] = useState<SseSummaryEvent | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  const applyPreset = (name: string | null) => {
+    const preset = presets.find((p) => p.name === name);
+    const values = preset ?? DEFAULT_VALUES;
+    setWindowHours(values.windowHours);
+    setRegions(values.regions);
+    setMarkets(values.markets);
+    setBooks(values.books);
+    setActivePresetName(name);
+    saveActivePresetName(name);
+  };
+
+  const handleSavePreset = () => {
+    const name = window.prompt("Preset name:", activePresetName ?? "");
+    if (!name?.trim()) return;
+    const trimmed = name.trim();
+    const preset: IngestionPreset = { name: trimmed, windowHours, regions, markets, books };
+    const next = presets.filter((p) => p.name !== trimmed).concat(preset);
+    setPresets(next);
+    savePresets(next);
+    setActivePresetName(trimmed);
+    saveActivePresetName(trimmed);
+  };
+
+  const handleDeletePreset = () => {
+    if (!activePresetName) return;
+    const next = presets.filter((p) => p.name !== activePresetName);
+    setPresets(next);
+    savePresets(next);
+    setActivePresetName(null);
+    saveActivePresetName(null);
+  };
 
   const scrollToBottom = useCallback(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -151,16 +251,18 @@ function RunIngestionSection() {
       const data: SseSummaryEvent = JSON.parse(e.data);
       setSummary(data);
       setIsRunning(false);
+      dispatch(api.util.invalidateTags(["Runs"]));
       es.close();
     });
 
     es.onerror = () => {
       setIsRunning(false);
+      dispatch(api.util.invalidateTags(["Runs"]));
       es.close();
     };
 
     return () => es.close();
-  }, [activeRunId]);
+  }, [activeRunId, dispatch]);
 
   const handleRun = async () => {
     setLogs([]);
@@ -190,7 +292,31 @@ function RunIngestionSection() {
   return (
     <>
       <Card>
-        <CardHeader>Run Gap-Fill Ingestion</CardHeader>
+        <CardHeader>
+          <span>Run Gap-Fill Ingestion</span>
+          <div className="ingest-preset-bar">
+            <select
+              className="input ingest-preset-bar__select"
+              value={activePresetName ?? ""}
+              onChange={(e) => applyPreset(e.target.value || null)}
+            >
+              <option value="">Defaults</option>
+              {presets.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" variant="secondary" onClick={handleSavePreset}>
+              Save
+            </Button>
+            {activePresetName && (
+              <Button size="sm" variant="secondary" onClick={handleDeletePreset}>
+                Delete
+              </Button>
+            )}
+          </div>
+        </CardHeader>
         <CardBody>
           <div className="ingest-form">
             <div className="ingest-form__row">
