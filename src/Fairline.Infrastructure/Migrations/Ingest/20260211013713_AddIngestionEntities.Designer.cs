@@ -3,6 +3,7 @@ using System;
 using Fairline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Fairline.Infrastructure.Migrations.Ingest
 {
     [DbContext(typeof(IngestDbContext))]
-    partial class IngestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260211013713_AddIngestionEntities")]
+    partial class AddIngestionEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

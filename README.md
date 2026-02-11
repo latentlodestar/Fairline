@@ -44,7 +44,7 @@ tests/
 
 **Postgres** with two schemas:
 
-- **`ingest`** — raw provider data: `providers`, `odds_records`
+- **`ingest`** — raw provider data: `providers`, `odds_records`, `ingest_runs`, `ingest_logs`, `provider_requests`, `events`, `odds_snapshots`, `provider_catalog_snapshots`, `sport_catalog`, `tracked_leagues`
 - **`modeling`** — scenario analysis: `scenarios`, `scenario_comparisons`
 
 ### Why separate DbContexts?
@@ -77,6 +77,27 @@ dotnet ef migrations add <Name> \
   --project src/Fairline.Infrastructure \
   --startup-project src/Fairline.Api
 ```
+
+## Secrets & Configuration
+
+### Odds API Key (required for ingestion)
+
+The ingestion system uses [The Odds API v4](https://the-odds-api.com/liveapi/guides/v4/) and requires an API key.
+
+**Development setup (user-secrets):**
+
+```bash
+dotnet user-secrets init --project src/Fairline.Api
+dotnet user-secrets set "OddsApi:ApiKey" "<YOUR_KEY>" --project src/Fairline.Api
+```
+
+**Container/production setup (environment variable):**
+
+```bash
+export ODDS_API_KEY=<YOUR_KEY>
+```
+
+The environment variable `ODDS_API_KEY` automatically maps to `OddsApi:ApiKey` in configuration.
 
 ## Running
 
@@ -118,7 +139,77 @@ The Vite dev server proxies `/api` and `/health` requests to the API.
 | GET | `/alive` | Liveness check |
 | GET | `/api/status` | API version + DB connectivity |
 | GET | `/api/ingest/providers` | List configured providers |
+| POST | `/api/ingest/catalog/refresh` | Refresh sports catalog from Odds API |
+| GET | `/api/ingest/catalog` | Get sports catalog + tracked leagues |
+| POST | `/api/ingest/catalog/track` | Toggle tracked league `{ providerSportKey, enabled }` |
+| POST | `/api/ingest/run` | Start gap-fill ingestion `{ windowHours, regions, markets, books }` |
+| GET | `/api/ingest/runs` | List recent ingestion runs |
+| GET | `/api/ingest/runs/{runId}` | Get run detail with logs |
+| GET | `/api/ingest/runs/{runId}/stream` | SSE stream of run progress (events: `log`, `progress`, `summary`) |
 | GET | `/api/modeling/scenarios` | List scenarios |
+
+## Ingestion Workflow
+
+### 1. Set up your Odds API key
+
+See [Secrets & Configuration](#secrets--configuration) above.
+
+### 2. Refresh the sports catalog
+
+Navigate to the **Ingestion** page in the UI, or call the API:
+
+```bash
+curl -X POST http://localhost:5192/api/ingest/catalog/refresh
+```
+
+This fetches all available sports/leagues from The Odds API and stores them in the `sport_catalog` table.
+
+### 3. Enable leagues to track
+
+In the UI, toggle the checkboxes for leagues you want to track (e.g., NFL, NBA, EPL). By default, **no leagues are enabled** — you must explicitly select which to track.
+
+Or via API:
+```bash
+curl -X POST http://localhost:5192/api/ingest/catalog/track \
+  -H "Content-Type: application/json" \
+  -d '{"providerSportKey": "basketball_nba", "enabled": true}'
+```
+
+### 4. Run gap-fill ingestion
+
+Click **Start Ingestion** in the UI to run a gap-fill ingestion. This will:
+1. Check which tracked leagues need fresh data (based on freshness windows)
+2. Call the Odds API for stale leagues
+3. Store events and flattened odds snapshots
+4. Stream progress via SSE to the UI
+
+Default configuration:
+- **Markets:** h2h, spreads, totals
+- **Books:** DraftKings, Pinnacle (uses `bookmakers` param for efficiency)
+- **Freshness windows:**
+  - Events starting in ≤24h: 10-minute freshness
+  - Events starting in 24–72h: 60-minute freshness
+  - Events starting in >72h: 6-hour freshness
+
+Or via API:
+```bash
+curl -X POST http://localhost:5192/api/ingest/run \
+  -H "Content-Type: application/json" \
+  -d '{"windowHours": 72, "regions": ["us"], "markets": ["h2h","spreads","totals"], "books": ["draftkings","pinnacle"]}'
+```
+
+### 5. View logs and run history
+
+The **Ingestion** page shows live SSE logs during a run and a table of recent runs with status, counts, and errors.
+
+## Assumptions
+
+- **Outrights/futures:** Skipped in v1. The catalog stores `hasOutrights` so they can be added later.
+- **Bookmaker filtering:** Uses the Odds API `bookmakers` parameter (overrides `regions`; 10 books = 1 region quota cost). Defaults to DraftKings + Pinnacle but configurable per run.
+- **Provider:** Hard-coded to "the-odds-api" as the sole provider. The schema supports multiple providers but v1 only implements one.
+- **Odds format:** Always `decimal`. Stored as `numeric(18,6)` in Postgres.
+- **Gap detection:** Coarse-grained per league (not per-event). If any event in a league is stale, the entire league is refreshed. This slightly over-fetches but minimizes complexity.
+- **Background execution:** Ingestion runs execute in a background `Task.Run` within the API process. No persistent job queue in v1.
 
 ## Testing
 

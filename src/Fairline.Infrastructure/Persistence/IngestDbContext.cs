@@ -9,6 +9,14 @@ public sealed class IngestDbContext(DbContextOptions<IngestDbContext> options) :
 
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<OddsRecord> OddsRecords => Set<OddsRecord>();
+    public DbSet<IngestRun> IngestRuns => Set<IngestRun>();
+    public DbSet<IngestLog> IngestLogs => Set<IngestLog>();
+    public DbSet<ProviderRequest> ProviderRequests => Set<ProviderRequest>();
+    public DbSet<SportEvent> SportEvents => Set<SportEvent>();
+    public DbSet<OddsSnapshot> OddsSnapshots => Set<OddsSnapshot>();
+    public DbSet<ProviderCatalogSnapshot> ProviderCatalogSnapshots => Set<ProviderCatalogSnapshot>();
+    public DbSet<SportCatalog> SportCatalogs => Set<SportCatalog>();
+    public DbSet<TrackedLeague> TrackedLeagues => Set<TrackedLeague>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { DashboardPage } from "./pages/DashboardPage";
+import { IngestionPage } from "./pages/IngestionPage";
 import { StatusPage } from "./pages/StatusPage";
 import { StyleGuidePage } from "./pages/StyleGuidePage";
 import { cn } from "./lib/cn";
 
-type Page = "dashboard" | "status" | "styleguide";
+type Page = "dashboard" | "ingestion" | "status" | "styleguide";
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
@@ -18,6 +19,7 @@ export default function App() {
           {(
             [
               ["dashboard", "Dashboard"],
+              ["ingestion", "Ingestion"],
               ["status", "Status"],
               ["styleguide", "Style Guide"],
             ] as const
@@ -38,6 +40,7 @@ export default function App() {
       </header>
       <main className="main-content">
         {page === "dashboard" && <DashboardPage />}
+        {page === "ingestion" && <IngestionPage />}
         {page === "status" && <StatusPage />}
         {page === "styleguide" && <StyleGuidePage />}
       </main>

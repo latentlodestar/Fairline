@@ -13,6 +13,14 @@ public static class DependencyInjection
         services.AddScoped<GetScenariosHandler>();
         services.AddScoped<GetStatusHandler>();
 
+        // Ingestion handlers
+        services.AddScoped<RefreshCatalogHandler>();
+        services.AddScoped<ToggleTrackedLeagueHandler>();
+        services.AddScoped<RunGapFillIngestionHandler>();
+        services.AddScoped<GetCatalogHandler>();
+        services.AddScoped<GetRunsHandler>();
+        services.AddScoped<GetRunDetailHandler>();
+
         return services;
     }
 }
