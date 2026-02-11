@@ -8,6 +8,8 @@ public interface IIngestRepository
     Task<Guid> CreateRunAsync(string runType, DateTimeOffset startedAtUtc, CancellationToken ct = default);
     Task CompleteRunAsync(Guid runId, int requestCount, int eventCount, int snapshotCount, int errorCount, DateTimeOffset completedAtUtc, CancellationToken ct = default);
     Task FailRunAsync(Guid runId, string error, DateTimeOffset now, CancellationToken ct = default);
+    Task CancelRunAsync(Guid runId, DateTimeOffset now, CancellationToken ct = default);
+    Task CancelRunAsync(Guid runId, int requestCount, int eventCount, int snapshotCount, DateTimeOffset now, CancellationToken ct = default);
     Task SetRunSummaryAsync(Guid runId, string summary, CancellationToken ct = default);
     Task AddLogAsync(Guid runId, string level, string message, DateTimeOffset createdAtUtc, CancellationToken ct = default);
     Task AddProviderRequestAsync(Guid runId, string url, int? statusCode, long? durationMs, int? quotaUsed, string? errorMessage, DateTimeOffset requestedAtUtc, CancellationToken ct = default);

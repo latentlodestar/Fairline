@@ -471,7 +471,7 @@
 }
 
 .dialog__footer {
-  @apply flex items-center justify-end gap-2;
+  @apply flex items-center justify-between gap-2;
   padding: 0.75rem 1.25rem;
   border-top: 1px solid var(--border);
 }
@@ -984,12 +984,32 @@
   max-width: 48rem;
 }
 
+.dialog--wide[open] {
+  @apply flex flex-col;
+  max-height: calc(100vh - 4rem);
+}
+
 .dialog--wide .dialog__header {
   @apply flex items-center justify-between gap-3;
+  flex-shrink: 0;
 }
 
 .dialog--wide .dialog__body {
+  @apply flex flex-col;
   padding: 1rem 1.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialog--wide .ingest-log {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.dialog--wide .dialog__footer {
+  flex-shrink: 0;
 }
 
 /* ---- Clickable table rows ---- */

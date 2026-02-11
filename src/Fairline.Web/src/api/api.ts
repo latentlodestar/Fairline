@@ -50,6 +50,12 @@ export const api = createApi({
     runIngestion: builder.mutation<{ runId: string }, RunIngestionRequest>({
       query: (body) => ({ url: "/api/ingest/run", method: "POST", body }),
     }),
+    cancelRun: builder.mutation<void, string>({
+      query: (runId) => ({
+        url: `/api/ingest/runs/${runId}/cancel`,
+        method: "POST",
+      }),
+    }),
     getRuns: builder.query<IngestRunSummary[], number | void>({
       query: (limit) => `/api/ingest/runs${limit ? `?limit=${limit}` : ""}`,
       providesTags: ["Runs"],
@@ -89,6 +95,7 @@ export const {
   useRefreshCatalogMutation,
   useToggleTrackedLeagueMutation,
   useRunIngestionMutation,
+  useCancelRunMutation,
   useGetRunsQuery,
   useGetRunDetailQuery,
   useGetDashboardQuery,

@@ -42,24 +42,64 @@ public sealed class OddsApiClient : IOddsApiClient
 
     public async Task<IReadOnlyList<OddsApiOddsEvent>> GetOddsAsync(string sportKey, OddsRequestOptions options, CancellationToken ct)
     {
-        var markets = string.Join(",", options.Markets);
-        var url = $"/v4/sports/{sportKey}/odds/?apiKey={_options.ApiKey}&markets={markets}&oddsFormat=decimal&dateFormat=iso";
+        var standardMarkets = options.Markets.Where(m => m != "outrights").ToList();
+        var hasOutrights = options.Markets.Any(m => m == "outrights");
 
+        var regionParams = BuildRegionParams(options);
+        var results = new List<OddsApiOddsEvent>();
+
+        if (standardMarkets.Count > 0)
+        {
+            var url = $"/v4/sports/{sportKey}/odds/?apiKey={_options.ApiKey}&markets={string.Join(",", standardMarkets)}&oddsFormat=decimal&dateFormat=iso{regionParams}";
+            var rawJson = await ExecuteWithRetryAsync(url, ct);
+            results.AddRange(JsonSerializer.Deserialize<List<OddsApiOddsEvent>>(rawJson, JsonOptions) ?? []);
+        }
+
+        if (hasOutrights)
+        {
+            var url = $"/v4/sports/{sportKey}/odds/?apiKey={_options.ApiKey}&markets=outrights&oddsFormat=decimal&dateFormat=iso{regionParams}";
+            try
+            {
+                var rawJson = await ExecuteWithRetryAsync(url, ct);
+                var outrightEvents = JsonSerializer.Deserialize<List<OddsApiOddsEvent>>(rawJson, JsonOptions) ?? [];
+                results = MergeEvents(results, outrightEvents);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.UnprocessableEntity)
+            {
+                _logger.LogInformation("Outrights market not supported for {SportKey}, skipping", sportKey);
+            }
+        }
+
+        return results;
+    }
+
+    private static string BuildRegionParams(OddsRequestOptions options)
+    {
         if (options.Bookmakers is { Count: > 0 })
-        {
-            url += $"&bookmakers={string.Join(",", options.Bookmakers)}";
-        }
-        else if (options.Regions is { Count: > 0 })
-        {
-            url += $"&regions={string.Join(",", options.Regions)}";
-        }
-        else
-        {
-            url += "&regions=us";
-        }
+            return $"&bookmakers={string.Join(",", options.Bookmakers)}";
+        if (options.Regions is { Count: > 0 })
+            return $"&regions={string.Join(",", options.Regions)}";
+        return "&regions=us";
+    }
 
-        var rawJson = await ExecuteWithRetryAsync(url, ct);
-        return JsonSerializer.Deserialize<List<OddsApiOddsEvent>>(rawJson, JsonOptions) ?? [];
+    private static List<OddsApiOddsEvent> MergeEvents(List<OddsApiOddsEvent> primary, List<OddsApiOddsEvent> secondary)
+    {
+        var byId = primary.ToDictionary(e => e.Id);
+        foreach (var evt in secondary)
+        {
+            if (byId.TryGetValue(evt.Id, out var existing))
+            {
+                // Merge bookmakers from the outrights response into the existing event
+                var mergedBookmakers = existing.Bookmakers.ToList();
+                mergedBookmakers.AddRange(evt.Bookmakers);
+                byId[evt.Id] = existing with { Bookmakers = mergedBookmakers };
+            }
+            else
+            {
+                byId[evt.Id] = evt;
+            }
+        }
+        return [.. byId.Values];
     }
 
     private async Task<string> ExecuteWithRetryAsync(string url, CancellationToken ct)
@@ -90,7 +130,13 @@ public sealed class OddsApiClient : IOddsApiClient
                         continue;
                     }
 
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var body = await response.Content.ReadAsStringAsync(ct);
+                        _logger.LogWarning("API returned {StatusCode} for {Url}: {Body}", (int)response.StatusCode, url, body);
+                        response.EnsureSuccessStatusCode();
+                    }
+
                     return await response.Content.ReadAsStringAsync(ct);
                 }
                 catch (HttpRequestException) when (attempt < _options.RetryCount)

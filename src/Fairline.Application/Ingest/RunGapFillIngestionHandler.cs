@@ -48,6 +48,16 @@ public sealed class RunGapFillIngestionHandler(
 
             for (var i = 0; i < leaguesToRefresh.Count; i++)
             {
+                if (ct.IsCancellationRequested)
+                {
+                    var cancelMsg = $"Cancelled by user after {i}/{leaguesToRefresh.Count} leagues: {totalRequests} requests, {totalEvents} events, {totalSnapshots} snapshots";
+                    PublishLog(runId, "Warning", cancelMsg);
+                    await repository.AddLogAsync(runId, IngestLog.Levels.Warning, cancelMsg, clock.UtcNow, CancellationToken.None);
+                    await repository.CancelRunAsync(runId, totalRequests, totalEvents, totalSnapshots, clock.UtcNow, CancellationToken.None);
+                    PublishSummary(runId, totalRequests, totalEvents, totalSnapshots, 0);
+                    return;
+                }
+
                 var sportKey = leaguesToRefresh[i];
                 var sw = Stopwatch.StartNew();
 
@@ -59,24 +69,26 @@ public sealed class RunGapFillIngestionHandler(
 
                     await repository.AddProviderRequestAsync(
                         runId, $"/v4/sports/{sportKey}/odds", 200, sw.ElapsedMilliseconds,
-                        null, null, clock.UtcNow, ct);
+                        null, null, clock.UtcNow, CancellationToken.None);
 
                     var leagueSnapshots = 0;
 
                     foreach (var apiEvent in events)
                     {
+                        ct.ThrowIfCancellationRequested();
+
                         if (!DateTimeOffset.TryParse(apiEvent.CommenceTime, out var commenceTime))
                             continue;
 
                         var eventId = await repository.UpsertEventAsync(
                             apiEvent.Id, apiEvent.SportKey, apiEvent.SportTitle,
                             apiEvent.HomeTeam, apiEvent.AwayTeam, commenceTime,
-                            clock.UtcNow, ct);
+                            clock.UtcNow, CancellationToken.None);
 
                         var snapshots = OddsFlattener.Flatten(eventId, apiEvent.Bookmakers, clock.UtcNow);
                         if (snapshots.Count > 0)
                         {
-                            await repository.AddOddsSnapshotsAsync(snapshots, ct);
+                            await repository.AddOddsSnapshotsAsync(snapshots, CancellationToken.None);
                             leagueSnapshots += snapshots.Count;
                         }
 
@@ -87,7 +99,11 @@ public sealed class RunGapFillIngestionHandler(
 
                     var msg = $"[{sportKey}] {events.Count} events, {leagueSnapshots} snapshots ({sw.ElapsedMilliseconds}ms)";
                     PublishLog(runId, "Info", msg);
-                    await repository.AddLogAsync(runId, IngestLog.Levels.Info, msg, clock.UtcNow, ct);
+                    await repository.AddLogAsync(runId, IngestLog.Levels.Info, msg, clock.UtcNow, CancellationToken.None);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -97,28 +113,36 @@ public sealed class RunGapFillIngestionHandler(
 
                     var errMsg = $"[{sportKey}] Error: {ex.Message}";
                     PublishLog(runId, "Error", errMsg);
-                    await repository.AddLogAsync(runId, IngestLog.Levels.Error, errMsg, clock.UtcNow, ct);
+                    await repository.AddLogAsync(runId, IngestLog.Levels.Error, errMsg, clock.UtcNow, CancellationToken.None);
                     await repository.AddProviderRequestAsync(
                         runId, $"/v4/sports/{sportKey}/odds", null, sw.ElapsedMilliseconds,
-                        null, ex.Message, clock.UtcNow, ct);
+                        null, ex.Message, clock.UtcNow, CancellationToken.None);
                 }
 
                 PublishProgress(runId, i + 1, leaguesToRefresh.Count, sportKey);
             }
 
             var summary = $"Completed: {totalRequests} requests, {totalEvents} events, {totalSnapshots} snapshots, {totalErrors} errors";
-            await repository.AddLogAsync(runId, IngestLog.Levels.Info, summary, clock.UtcNow, ct);
-            await repository.SetRunSummaryAsync(runId, summary, ct);
-            await repository.CompleteRunAsync(runId, totalRequests, totalEvents, totalSnapshots, totalErrors, clock.UtcNow, ct);
+            await repository.AddLogAsync(runId, IngestLog.Levels.Info, summary, clock.UtcNow, CancellationToken.None);
+            await repository.SetRunSummaryAsync(runId, summary, CancellationToken.None);
+            await repository.CompleteRunAsync(runId, totalRequests, totalEvents, totalSnapshots, totalErrors, clock.UtcNow, CancellationToken.None);
 
             PublishLog(runId, "Info", summary);
             PublishSummary(runId, totalRequests, totalEvents, totalSnapshots, totalErrors);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            var cancelMsg = $"Cancelled by user: {totalRequests} requests, {totalEvents} events, {totalSnapshots} snapshots";
+            PublishLog(runId, "Warning", cancelMsg);
+            await repository.AddLogAsync(runId, IngestLog.Levels.Warning, cancelMsg, clock.UtcNow, CancellationToken.None);
+            await repository.CancelRunAsync(runId, totalRequests, totalEvents, totalSnapshots, clock.UtcNow, CancellationToken.None);
+            PublishSummary(runId, totalRequests, totalEvents, totalSnapshots, 0);
         }
         catch (Exception ex)
         {
             totalErrors++;
             PublishLog(runId, "Error", $"Fatal error: {ex.Message}");
-            await repository.FailRunAsync(runId, ex.Message, clock.UtcNow, ct);
+            await repository.FailRunAsync(runId, ex.Message, clock.UtcNow, CancellationToken.None);
             PublishSummary(runId, totalRequests, totalEvents, totalSnapshots, totalErrors);
         }
     }

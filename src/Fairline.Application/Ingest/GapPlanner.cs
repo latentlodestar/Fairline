@@ -12,7 +12,7 @@ public static class GapPlanner
 
         foreach (var league in leagues)
         {
-            if (!league.Enabled) continue;
+            if (!league.Enabled || !league.Active) continue;
 
             var freshness = GetRequiredFreshness(league.EarliestEventCommenceTime, now);
 

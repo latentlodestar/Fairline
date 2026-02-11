@@ -31,6 +31,22 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task CancelRunAsync(Guid runId, DateTimeOffset now, CancellationToken ct)
+    {
+        var run = await db.IngestRuns.FindAsync([runId], ct)
+            ?? throw new InvalidOperationException($"IngestRun {runId} not found");
+        run.Cancel(now);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task CancelRunAsync(Guid runId, int requestCount, int eventCount, int snapshotCount, DateTimeOffset now, CancellationToken ct)
+    {
+        var run = await db.IngestRuns.FindAsync([runId], ct)
+            ?? throw new InvalidOperationException($"IngestRun {runId} not found");
+        run.Cancel(requestCount, eventCount, snapshotCount, now);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task SetRunSummaryAsync(Guid runId, string summary, CancellationToken ct)
     {
         var run = await db.IngestRuns.FindAsync([runId], ct)
@@ -165,6 +181,13 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
             .Where(t => t.Enabled)
             .ToListAsync(ct);
 
+        var activeSportKeys = await db.SportCatalogs
+            .AsNoTracking()
+            .Where(sc => sc.Active)
+            .Select(sc => sc.ProviderSportKey)
+            .ToListAsync(ct);
+        var activeSet = new HashSet<string>(activeSportKeys);
+
         var result = new List<TrackedLeagueState>();
         foreach (var tl in trackedLeagues)
         {
@@ -187,6 +210,7 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
 
             result.Add(new TrackedLeagueState(
                 tl.Provider, tl.ProviderSportKey, tl.Enabled,
+                activeSet.Contains(tl.ProviderSportKey),
                 earliestEvent, latestSnapshot));
         }
 

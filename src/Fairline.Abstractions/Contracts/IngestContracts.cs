@@ -62,6 +62,7 @@ public sealed record TrackedLeagueState(
     string Provider,
     string ProviderSportKey,
     bool Enabled,
+    bool Active,
     DateTimeOffset? EarliestEventCommenceTime,
     DateTimeOffset? LatestSnapshotCapturedAtUtc);
 

@@ -12,6 +12,7 @@ import {
   useRefreshCatalogMutation,
   useToggleTrackedLeagueMutation,
   useRunIngestionMutation,
+  useCancelRunMutation,
   useGetRunsQuery,
   useGetRunDetailQuery,
 } from "../api/api";
@@ -85,6 +86,7 @@ export function IngestionPage() {
 
   // --- SSE / run state ---
   const [runIngestion] = useRunIngestionMutation();
+  const [cancelRun] = useCancelRunMutation();
   const dispatch = useAppDispatch();
 
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
@@ -233,6 +235,8 @@ export function IngestionPage() {
         logs={logs}
         progress={progress}
         summary={summary}
+        onCancel={(runId: string) => { cancelRun(runId).then(() => dispatch(api.util.invalidateTags(["Runs"]))); closeLogModal(); }}
+        activeRunId={activeRunId}
         // Historical mode
         selectedRunId={selectedRunId}
       />
@@ -558,15 +562,7 @@ function RecentRunsSection({
                   <Badge variant="neutral">{run.runType}</Badge>
                 </Td>
                 <Td>
-                  <Badge
-                    variant={
-                      run.status === "Completed"
-                        ? "success"
-                        : run.status === "Failed"
-                          ? "danger"
-                          : "warning"
-                    }
-                  >
+                  <Badge variant={statusBadgeVariant(run.status)}>
                     {run.status}
                   </Badge>
                 </Td>
@@ -597,6 +593,8 @@ interface IngestionLogDialogProps {
   logs: SseLogEvent[];
   progress: SseProgressEvent | null;
   summary: SseSummaryEvent | null;
+  onCancel: (runId: string) => void;
+  activeRunId: string | null;
   // Historical mode
   selectedRunId: string | null;
 }
@@ -609,6 +607,8 @@ function IngestionLogDialog({
   logs,
   progress,
   summary,
+  onCancel,
+  activeRunId,
   selectedRunId,
 }: IngestionLogDialogProps) {
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -635,15 +635,39 @@ function IngestionLogDialog({
               <Badge variant="warning">Running</Badge>
             ) : summary ? (
               <Badge variant={summary.errorCount > 0 ? "danger" : "success"}>
-                {summary.errorCount > 0 ? "Completed with errors" : "Success"}
+                {summary.errorCount > 0 ? "Failed" : "Completed"}
               </Badge>
             ) : null}
           </>
         }
         footer={
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
+          <>
+            <div className="ingest-summary">
+              {summary && (
+                <>
+                  <span>
+                    {summary.requestCount} requests, {summary.eventCount} events,{" "}
+                    {summary.snapshotCount} snapshots
+                  </span>
+                  {summary.errorCount > 0 && (
+                    <span className="ingest-summary__errors">
+                      {summary.errorCount} error(s)
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isRunning && activeRunId && (
+                <Button size="sm" variant="danger" onClick={() => onCancel(activeRunId)}>
+                  Cancel
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          </>
         }
       >
         {progress && progress.total > 0 && (
@@ -679,19 +703,6 @@ function IngestionLogDialog({
           ))}
           <div ref={logEndRef} />
         </div>
-        {summary && (
-          <div className="ingest-summary">
-            <span>
-              {summary.requestCount} requests, {summary.eventCount} events,{" "}
-              {summary.snapshotCount} snapshots
-            </span>
-            {summary.errorCount > 0 && (
-              <span className="ingest-summary__errors">
-                {summary.errorCount} error(s)
-              </span>
-            )}
-          </div>
-        )}
       </Dialog>
     );
   }
@@ -702,15 +713,79 @@ function IngestionLogDialog({
       open={open}
       onClose={onClose}
       className="dialog--wide"
-      title={<span>Ingestion Log</span>}
+      title={
+        selectedRunId ? (
+          <HistoricalLogTitle runId={selectedRunId} />
+        ) : (
+          <span>Ingestion Log</span>
+        )
+      }
       footer={
-        <Button size="sm" variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+        selectedRunId ? (
+          <HistoricalLogFooter runId={selectedRunId} onCancel={onCancel} onClose={onClose} />
+        ) : (
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        )
       }
     >
       {selectedRunId && <HistoricalLogContent runId={selectedRunId} />}
     </Dialog>
+  );
+}
+
+function statusBadgeVariant(status: string): "success" | "danger" | "neutral" | "warning" {
+  switch (status) {
+    case "Completed": return "success";
+    case "Failed": return "danger";
+    case "Cancelled": return "neutral";
+    default: return "warning";
+  }
+}
+
+function HistoricalLogTitle({ runId }: { runId: string }) {
+  const { data: detail } = useGetRunDetailQuery(runId);
+
+  return (
+    <>
+      <span>Ingestion Log</span>
+      {detail && <Badge variant={statusBadgeVariant(detail.status)}>{detail.status}</Badge>}
+    </>
+  );
+}
+
+function HistoricalLogFooter({ runId, onCancel, onClose }: { runId: string; onCancel: (runId: string) => void; onClose: () => void }) {
+  const { data: detail } = useGetRunDetailQuery(runId);
+
+  return (
+    <>
+      <div className="ingest-summary">
+        {detail && (
+          <>
+            <span>
+              {detail.requestCount} requests, {detail.eventCount} events,{" "}
+              {detail.snapshotCount} snapshots
+            </span>
+            {detail.errorCount > 0 && (
+              <span className="ingest-summary__errors">
+                {detail.errorCount} error(s)
+              </span>
+            )}
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {detail?.status === "Running" && (
+          <Button size="sm" variant="danger" onClick={() => onCancel(runId)}>
+            Cancel
+          </Button>
+        )}
+        <Button size="sm" variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -727,19 +802,6 @@ function HistoricalLogContent({ runId }: { runId: string }) {
 
   return (
     <>
-      <div style={{ marginBottom: "0.75rem" }}>
-        <Badge
-          variant={
-            detail.status === "Completed"
-              ? "success"
-              : detail.status === "Failed"
-                ? "danger"
-                : "warning"
-          }
-        >
-          {detail.status}
-        </Badge>
-      </div>
       <div className="ingest-log">
         {detail.logs.map((log, i) => (
           <div
@@ -756,17 +818,6 @@ function HistoricalLogContent({ runId }: { runId: string }) {
             <span className="ingest-log__msg">{log.message}</span>
           </div>
         ))}
-      </div>
-      <div className="ingest-summary">
-        <span>
-          {detail.requestCount} requests, {detail.eventCount} events,{" "}
-          {detail.snapshotCount} snapshots
-        </span>
-        {detail.errorCount > 0 && (
-          <span className="ingest-summary__errors">
-            {detail.errorCount} error(s)
-          </span>
-        )}
       </div>
     </>
   );

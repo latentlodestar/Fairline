@@ -9,6 +9,7 @@ public sealed record SseEvent(string EventType, string Data);
 public sealed class IngestRunNotifier : IIngestEventSink
 {
     private readonly ConcurrentDictionary<Guid, Channel<SseEvent>> _channels = new();
+    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _cancellations = new();
 
     public Channel<SseEvent> CreateChannel(Guid runId)
     {
@@ -34,11 +35,31 @@ public sealed class IngestRunNotifier : IIngestEventSink
         }
     }
 
+    public CancellationToken CreateCancellation(Guid runId)
+    {
+        var cts = new CancellationTokenSource();
+        _cancellations[runId] = cts;
+        return cts.Token;
+    }
+
+    public void RequestCancellation(Guid runId)
+    {
+        if (_cancellations.TryGetValue(runId, out var cts))
+        {
+            cts.Cancel();
+        }
+    }
+
     public void Complete(Guid runId)
     {
         if (_channels.TryRemove(runId, out var channel))
         {
             channel.Writer.TryComplete();
+        }
+
+        if (_cancellations.TryRemove(runId, out var cts))
+        {
+            cts.Dispose();
         }
     }
 }

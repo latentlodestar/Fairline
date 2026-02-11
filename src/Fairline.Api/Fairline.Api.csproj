@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>Fairline.Api</RootNamespace>
+    <UserSecretsId>038884bc-a996-4264-957a-470080d3e997</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

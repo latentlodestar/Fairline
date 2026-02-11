@@ -45,6 +45,7 @@ public static class IngestEndpoints
             var runId = await repository.CreateRunAsync(IngestRun.RunTypes.GapFill, now);
 
             notifier.CreateChannel(runId);
+            var cancellationToken = notifier.CreateCancellation(runId);
 
             _ = Task.Run(async () =>
             {
@@ -52,7 +53,7 @@ public static class IngestEndpoints
                 {
                     using var scope = scopeFactory.CreateScope();
                     var handler = scope.ServiceProvider.GetRequiredService<RunGapFillIngestionHandler>();
-                    await handler.HandleAsync(runId, request, CancellationToken.None);
+                    await handler.HandleAsync(runId, request, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -68,6 +69,18 @@ public static class IngestEndpoints
             return Results.Ok(new { runId });
         })
             .WithName("RunIngestion");
+
+        group.MapPost("/runs/{runId:guid}/cancel", async (
+            Guid runId,
+            IngestRunNotifier notifier,
+            Fairline.Abstractions.Interfaces.IIngestRepository repository,
+            Fairline.Abstractions.Interfaces.IClock clock) =>
+        {
+            await repository.CancelRunAsync(runId, clock.UtcNow);
+            notifier.RequestCancellation(runId);
+            return Results.Ok();
+        })
+            .WithName("CancelRun");
 
         group.MapGet("/runs", async (GetRunsHandler handler, int? limit, CancellationToken ct) =>
             Results.Ok(await handler.HandleAsync(limit ?? 20, ct)))

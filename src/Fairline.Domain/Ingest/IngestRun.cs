@@ -54,10 +54,26 @@ public sealed class IngestRun
         public const string GapFill = "GapFill";
     }
 
+    public void Cancel(DateTimeOffset now)
+    {
+        Status = Statuses.Cancelled;
+        CompletedAtUtc = now;
+    }
+
+    public void Cancel(int requestCount, int eventCount, int snapshotCount, DateTimeOffset now)
+    {
+        Status = Statuses.Cancelled;
+        RequestCount = requestCount;
+        EventCount = eventCount;
+        SnapshotCount = snapshotCount;
+        CompletedAtUtc = now;
+    }
+
     public static class Statuses
     {
         public const string Running = "Running";
         public const string Completed = "Completed";
         public const string Failed = "Failed";
+        public const string Cancelled = "Cancelled";
     }
 }
