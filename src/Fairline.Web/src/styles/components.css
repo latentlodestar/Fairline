@@ -591,6 +591,30 @@
 }
 
 /* ----------------------------------------------------------------
+   STATUS FOOTER
+   ---------------------------------------------------------------- */
+
+.status-footer {
+  @apply flex items-center gap-4 shrink-0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.375rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.status-footer__version {
+  margin-left: auto;
+}
+
+.status-ok {
+  color: var(--success-text);
+}
+
+.status-err {
+  color: var(--danger-text);
+}
+
+/* ----------------------------------------------------------------
    DASHBOARD
    ---------------------------------------------------------------- */
 

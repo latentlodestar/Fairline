@@ -15,7 +15,11 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
     {
         var snapshots = await repo.GetLatestSnapshotsAsync(ct);
         var catalog = await repo.GetSportCatalogAsync(ct);
-        var groupLookup = catalog.ToDictionary(c => c.NormalizedLeague, c => c.Group, StringComparer.OrdinalIgnoreCase);
+        var groupLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in catalog)
+        {
+            groupLookup.TryAdd(c.ProviderSportKey, c.Group);
+        }
 
         var kpis = new DashboardKpis(
             EventCount: snapshots.Select(s => s.SportEventId).Distinct().Count(),
@@ -95,6 +99,7 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
                         target.Price, target.Point, targetDec, target.BookmakerKey,
                         EdgePct: null,
                         Signal: "line_mismatch",
+                        first.CommenceTimeUtc,
                         lastUpdated);
                 }
             }
@@ -128,6 +133,7 @@ public sealed class GetEdgeComparisonsHandler(IIngestRepository repo)
             target?.Price, target?.Point, targetDec, target?.BookmakerKey ?? targetBook,
             edgePct,
             signal,
+            first.CommenceTimeUtc,
             lastUpdated);
     }
 

@@ -216,6 +216,7 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
             orderby s.CapturedAtUtc descending
             select new SnapshotWithEvent(
                 e.Id, e.HomeTeam, e.AwayTeam, e.SportKey, e.SportTitle,
+                e.CommenceTimeUtc,
                 s.BookmakerKey, s.BookmakerTitle, s.MarketKey, s.OutcomeName,
                 s.Price, s.Point, s.CapturedAtUtc)
         ).ToListAsync(ct);

@@ -31,7 +31,7 @@ interface IngestionPreset {
   windowHours: number;
   regions: string;
   markets: string;
-  books: string;
+  books?: string;
 }
 
 const PRESETS_KEY = "fairline:ingestion-presets";
@@ -40,7 +40,7 @@ const ACTIVE_PRESET_KEY = "fairline:ingestion-active-preset";
 const DEFAULT_VALUES: Omit<IngestionPreset, "name"> = {
   windowHours: 72,
   regions: "us",
-  markets: "h2h,spreads,totals",
+  markets: "h2h,spreads,totals,outrights",
   books: "draftkings,pinnacle",
 };
 
@@ -81,7 +81,6 @@ export function IngestionPage() {
     presets.find((p) => p.name === activePresetName) ?? DEFAULT_VALUES;
   const [regions, setRegions] = useState(initial.regions);
   const [markets, setMarkets] = useState(initial.markets);
-  const [books, setBooks] = useState(initial.books);
   const [windowHours, setWindowHours] = useState(initial.windowHours);
 
   // --- SSE / run state ---
@@ -105,7 +104,6 @@ export function IngestionPage() {
     setWindowHours(values.windowHours);
     setRegions(values.regions);
     setMarkets(values.markets);
-    setBooks(values.books);
     setActivePresetName(name);
     saveActivePresetName(name);
   };
@@ -119,7 +117,6 @@ export function IngestionPage() {
       windowHours,
       regions,
       markets,
-      books,
     };
     const next = presets.filter((p) => p.name !== trimmed).concat(preset);
     setPresets(next);
@@ -189,10 +186,6 @@ export function IngestionPage() {
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      books: books
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
     }).unwrap();
 
     setActiveRunId(result.runId);
@@ -227,8 +220,6 @@ export function IngestionPage() {
         setRegions={setRegions}
         markets={markets}
         setMarkets={setMarkets}
-        books={books}
-        setBooks={setBooks}
       />
 
       <RecentRunsSection onSelectRun={openHistoricalLog} />
@@ -267,8 +258,6 @@ interface CatalogSectionProps {
   setRegions: (v: string) => void;
   markets: string;
   setMarkets: (v: string) => void;
-  books: string;
-  setBooks: (v: string) => void;
 }
 
 function CatalogSection({
@@ -285,8 +274,6 @@ function CatalogSection({
   setRegions,
   markets,
   setMarkets,
-  books,
-  setBooks,
 }: CatalogSectionProps) {
   const { data: catalog, isLoading } = useGetCatalogQuery();
   const [refreshCatalog, { isLoading: isRefreshing }] =
@@ -294,7 +281,7 @@ function CatalogSection({
   const [toggleLeague] = useToggleTrackedLeagueMutation();
 
   const [inSeasonOnly, setInSeasonOnly] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -435,15 +422,6 @@ function CatalogSection({
             value={markets}
             onChange={(e) => setMarkets(e.target.value)}
             placeholder="h2h,spreads,totals"
-          />
-        </label>
-        <label className="ingest-form__label">
-          Books
-          <input
-            className="input"
-            value={books}
-            onChange={(e) => setBooks(e.target.value)}
-            placeholder="draftkings,pinnacle"
           />
         </label>
       </div>

@@ -40,14 +40,32 @@ export function StatusPage() {
       <h1 className="section-title">System Status</h1>
 
       <div className="kpi-strip">
-        <KpiCard label="API" value={status ? "Healthy" : "Down"} />
-        <KpiCard label="Database" value={status?.databaseConnected ? "Connected" : "Disconnected"} />
-        <KpiCard label="Version" value={status?.version ?? "—"} />
         <KpiCard label="Last Capture" value={lastCapture} />
       </div>
 
       <Card>
-        <CardHeader>Latest Ingestion Runs</CardHeader>
+        <CardHeader>
+          Latest Ingestion Runs
+          {runs && runs.length > 0 && (
+            <span>
+              <Badge
+                variant={
+                  runs[0].status === "Completed"
+                    ? "success"
+                    : runs[0].status === "Failed"
+                      ? "danger"
+                      : "warning"
+                }
+              >
+                {runs[0].status}
+              </Badge>
+              {" "}
+              <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
+                {formatDateTime(runs[0].startedAtUtc)}
+              </span>
+            </span>
+          )}
+        </CardHeader>
         {(!runs || runs.length === 0) ? (
           <CardBody>
             <p className="placeholder">No ingestion runs yet.</p>

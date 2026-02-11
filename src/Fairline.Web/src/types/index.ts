@@ -154,6 +154,7 @@ export interface EdgeComparisonRow {
   targetBook: string;
   edgePct: number | null;
   signal: EdgeSignal;
+  commenceTimeUtc: string;
   lastUpdatedUtc: string;
 }
 

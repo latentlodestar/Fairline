@@ -217,6 +217,7 @@ export function DashboardPage() {
                 >
                   Event{sortIndicator("event")}
                 </Th>
+                <Th>Date/Time</Th>
                 <Th>Selection</Th>
                 <Th align="right">Pinnacle</Th>
                 <Th align="right">DraftKings</Th>
@@ -244,6 +245,7 @@ export function DashboardPage() {
                       {shortEvent(row.homeTeam, row.awayTeam)}
                     </span>
                   </Td>
+                  <Td>{formatDateTime(row.commenceTimeUtc)}</Td>
                   <Td>{row.selectionKey}</Td>
                   <Td align="right">
                     {row.baselineBook

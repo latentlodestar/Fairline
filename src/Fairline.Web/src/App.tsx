@@ -1,16 +1,13 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { StatusFooter } from "./components/StatusFooter";
 import { DashboardPage } from "./pages/DashboardPage";
 import { IngestionPage } from "./pages/IngestionPage";
-import { StatusPage } from "./pages/StatusPage";
-import { StyleGuidePage } from "./pages/StyleGuidePage";
 import { cn } from "./lib/cn";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/ingestion", label: "Ingestion" },
-  { to: "/status", label: "Status" },
-  { to: "/style-guide", label: "Style Guide" },
 ] as const;
 
 export default function App() {
@@ -38,10 +35,9 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/ingestion" element={<IngestionPage />} />
-          <Route path="/status" element={<StatusPage />} />
-          <Route path="/style-guide" element={<StyleGuidePage />} />
         </Routes>
       </main>
+      <StatusFooter />
     </div>
   );
 }

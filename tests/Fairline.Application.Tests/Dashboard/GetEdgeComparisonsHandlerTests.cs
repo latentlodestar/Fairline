@@ -14,6 +14,8 @@ public sealed class GetEdgeComparisonsHandlerTests
 
     public GetEdgeComparisonsHandlerTests()
     {
+        _repo.GetSportCatalogAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<SportCatalogEntry>());
         _handler = new GetEdgeComparisonsHandler(_repo);
     }
 
@@ -21,7 +23,7 @@ public sealed class GetEdgeComparisonsHandlerTests
         string bookKey, string bookTitle, string market, string outcome,
         decimal price, decimal? point = null, Guid? eventId = null) =>
         new(eventId ?? EventId, "HomeTeam", "AwayTeam",
-            "soccer_epl", "EPL",
+            "soccer_epl", "EPL", Now.AddDays(1),
             bookKey, bookTitle, market, outcome,
             price, point, Now);
 

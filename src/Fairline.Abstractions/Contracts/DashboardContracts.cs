@@ -4,6 +4,7 @@ namespace Fairline.Abstractions.Contracts;
 public sealed record SnapshotWithEvent(
     Guid SportEventId, string HomeTeam, string AwayTeam,
     string SportKey, string SportTitle,
+    DateTimeOffset CommenceTimeUtc,
     string BookmakerKey, string BookmakerTitle,
     string MarketKey, string OutcomeName,
     decimal Price, decimal? Point, DateTimeOffset CapturedAtUtc);
@@ -42,6 +43,7 @@ public sealed record EdgeComparisonRow(
     string TargetBook,
     decimal? EdgePct,
     string Signal,
+    DateTimeOffset CommenceTimeUtc,
     DateTimeOffset LastUpdatedUtc);
 
 public sealed record EdgeComparisonsResponse(
