@@ -1,8 +1,9 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Fairline.AppHost</RootNamespace>
+    <UserSecretsId>dc02f2b2-515b-4714-87af-d332fe65a111</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

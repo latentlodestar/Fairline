@@ -73,7 +73,7 @@ export function DashboardPage() {
         </Select>
         <Input
           type="search"
-          placeholder="Search events\u2026"
+          placeholder="Search events 2026"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

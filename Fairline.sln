@@ -21,15 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fairline.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fairline.Migrator", "src\Fairline.Migrator\Fairline.Migrator.csproj", "{40A8966C-CEEF-479C-9C0A-BBD9EDAA09FA}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fairline.Web", "Fairline.Web", "{B1C4D5E6-F7A8-49B0-C1D2-E3F4A5B6C7D8}"
-	ProjectSection(SolutionItems) = preProject
-		src\Fairline.Web\package.json = src\Fairline.Web\package.json
-		src\Fairline.Web\tsconfig.json = src\Fairline.Web\tsconfig.json
-		src\Fairline.Web\tsconfig.app.json = src\Fairline.Web\tsconfig.app.json
-		src\Fairline.Web\vite.config.ts = src\Fairline.Web\vite.config.ts
-		src\Fairline.Web\vitest.config.ts = src\Fairline.Web\vitest.config.ts
-		src\Fairline.Web\index.html = src\Fairline.Web\index.html
-	EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fairline.Web", "src\Fairline.Web\Fairline.Web.esproj", "{B1C4D5E6-F7A8-49B0-C1D2-E3F4A5B6C7D8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
