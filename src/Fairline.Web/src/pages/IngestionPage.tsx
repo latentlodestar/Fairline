@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { Card, CardBody, CardHeader } from "../components/Card";
 import { Badge } from "../components/Badge";
@@ -301,6 +301,18 @@ function CatalogSection({
     catalog?.trackedLeagues?.map((t) => [t.providerSportKey, t.enabled]) ?? [],
   );
 
+  const enabledLeagueCount = useMemo(
+    () => catalog?.trackedLeagues?.filter((t) => t.enabled).length ?? 0,
+    [catalog],
+  );
+
+  const marketCount = useMemo(
+    () => markets.split(",").map((s) => s.trim()).filter(Boolean).length,
+    [markets],
+  );
+
+  const estimatedRequests = enabledLeagueCount * marketCount;
+
   const sports = inSeasonOnly
     ? (catalog?.sports ?? []).filter((s) => s.active)
     : (catalog?.sports ?? []);
@@ -314,161 +326,184 @@ function CatalogSection({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="ingest-catalog-actions">
+      {/* Top-level bar: always visible */}
+      <div className="ingest-topbar">
+        <div className="ingest-topbar__left">
           <button
             className={cn(
               "ingest-collapse-btn",
               !collapsed && "ingest-collapse-btn--open",
             )}
             onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "Expand catalog" : "Collapse catalog"}
+            aria-label={collapsed ? "Expand settings" : "Collapse settings"}
           >
             ▸
           </button>
-          <span>Sports Catalog</span>
+          <span className="ingest-topbar__title">Ingestion Settings</span>
+
+          <div className="ingest-cost-estimate">
+            <span className="ingest-cost-estimate__value">{estimatedRequests}</span>
+            <span className="ingest-cost-estimate__label">
+              API requests
+              <span className="ingest-cost-estimate__breakdown">
+                {enabledLeagueCount} league{enabledLeagueCount !== 1 ? "s" : ""} &times; {marketCount} market{marketCount !== 1 ? "s" : ""}
+              </span>
+            </span>
+          </div>
         </div>
-        <div className="ingest-action-wrap" ref={menuRef}>
-          <button
-            className="ingest-action-btn"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Actions"
+
+        <div className="ingest-topbar__right">
+          <select
+            className="input ingest-preset-bar__select"
+            value={activePresetName ?? ""}
+            onChange={(e) => applyPreset(e.target.value || null)}
           >
-            ⋮
-          </button>
-          {menuOpen && (
-            <div className="ingest-action-menu">
-              <button
-                className="ingest-action-menu__item"
-                disabled={isRefreshing}
-                onClick={() => {
-                  refreshCatalog();
-                  setMenuOpen(false);
-                }}
-              >
-                {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
-              </button>
-              <button
-                className="ingest-action-menu__item"
-                disabled={isRunning}
-                onClick={() => {
-                  onRun();
-                  setMenuOpen(false);
-                }}
-              >
-                {isRunning ? "Running..." : "Start Ingestion"}
-              </button>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-
-      {/* Filter bar */}
-      <div className="ingest-filter-bar">
-        <label className="ingest-toggle">
-          <input
-            type="checkbox"
-            checked={inSeasonOnly}
-            onChange={() => setInSeasonOnly((v) => !v)}
-          />
-          <span className="ingest-toggle__label">In Season Only</span>
-        </label>
-
-        <select
-          className="input ingest-preset-bar__select"
-          value={activePresetName ?? ""}
-          onChange={(e) => applyPreset(e.target.value || null)}
-        >
-          <option value="">Defaults</option>
-          {presets.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <Button size="sm" variant="secondary" onClick={handleSavePreset}>
-          Save
-        </Button>
-        {activePresetName && (
-          <Button size="sm" variant="secondary" onClick={handleDeletePreset}>
-            Delete
+            <option value="">Defaults</option>
+            {presets.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" variant="secondary" onClick={handleSavePreset}>
+            Save
           </Button>
-        )}
+          {activePresetName && (
+            <Button size="sm" variant="secondary" onClick={handleDeletePreset}>
+              Delete
+            </Button>
+          )}
 
-        <label className="ingest-form__label">
-          Window
-          <input
-            type="number"
-            className="input"
-            value={windowHours}
-            onChange={(e) => setWindowHours(Number(e.target.value))}
-            min={1}
-            max={720}
-          />
-        </label>
-        <label className="ingest-form__label">
-          Regions
-          <input
-            className="input"
-            value={regions}
-            onChange={(e) => setRegions(e.target.value)}
-            placeholder="us,eu"
-          />
-        </label>
-        <label className="ingest-form__label">
-          Markets
-          <input
-            className="input"
-            value={markets}
-            onChange={(e) => setMarkets(e.target.value)}
-            placeholder="h2h,spreads,totals"
-          />
-        </label>
+          <div className="ingest-action-wrap" ref={menuRef}>
+            <Button
+              className="ingest-action-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Actions"
+            >
+              ⋮
+            </Button>
+            {menuOpen && (
+              <div className="ingest-action-menu">
+                <button
+                  className="ingest-action-menu__item"
+                  disabled={isRunning}
+                  onClick={() => {
+                    onRun();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {isRunning ? "Running..." : "Start Ingestion"}
+                </button>
+                <button
+                  className="ingest-action-menu__item"
+                  disabled={isRefreshing}
+                  onClick={() => {
+                    refreshCatalog();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {isRefreshing ? "Refreshing..." : "Refresh Catalog"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Collapsible body */}
       {!collapsed && (
         <CardBody>
-          {isLoading && <p className="ingest-muted">Loading catalog...</p>}
-          {!isLoading && grouped.size === 0 && (
-            <p className="ingest-muted">
-              No sports in catalog. Use the ⋮ menu to refresh from the Odds API.
-            </p>
-          )}
-          {[...grouped.entries()].map(([group, sports]) => (
-            <div key={group} className="ingest-catalog-group">
-              <div className="ingest-catalog-group__title">{group}</div>
-              <div className="ingest-catalog-group__items">
-                {sports.map((sport) => {
-                  const tracked =
-                    trackedMap.get(sport.providerSportKey) ?? false;
-                  return (
-                    <label
-                      key={sport.providerSportKey}
-                      className="ingest-toggle"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={tracked}
-                        onChange={() =>
-                          toggleLeague({
-                            providerSportKey: sport.providerSportKey,
-                            enabled: !tracked,
-                          })
-                        }
-                      />
-                      <span className="ingest-toggle__label">
-                        {sport.title}
-                        {!sport.active && (
-                          <Badge variant="neutral">Off-season</Badge>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+          {/* Parameters section */}
+          <div className="ingest-section">
+            <div className="ingest-section__title">Parameters</div>
+            <div className="ingest-params">
+              <label className="ingest-form__label">
+                Window (hours)
+                <input
+                  type="number"
+                  className="input"
+                  value={windowHours}
+                  onChange={(e) => setWindowHours(Number(e.target.value))}
+                  min={1}
+                  max={720}
+                />
+              </label>
+              <label className="ingest-form__label">
+                Regions
+                <input
+                  className="input"
+                  value={regions}
+                  onChange={(e) => setRegions(e.target.value)}
+                  placeholder="us,eu"
+                />
+              </label>
+              <label className="ingest-form__label">
+                Markets
+                <input
+                  className="input"
+                  value={markets}
+                  onChange={(e) => setMarkets(e.target.value)}
+                  placeholder="h2h,spreads,totals"
+                />
+              </label>
             </div>
-          ))}
+          </div>
+
+          {/* Sports section */}
+          <div className="ingest-section">
+            <div className="ingest-section__header">
+              <div className="ingest-section__title">Sports</div>
+              <label className="ingest-toggle">
+                <input
+                  type="checkbox"
+                  checked={inSeasonOnly}
+                  onChange={() => setInSeasonOnly((v) => !v)}
+                />
+                <span className="ingest-toggle__label">In Season Only</span>
+              </label>
+            </div>
+
+            {isLoading && <p className="ingest-muted">Loading catalog...</p>}
+            {!isLoading && grouped.size === 0 && (
+              <p className="ingest-muted">
+                No sports in catalog. Use the ⋮ menu to refresh from the Odds API.
+              </p>
+            )}
+            {[...grouped.entries()].map(([group, sports]) => (
+              <div key={group} className="ingest-catalog-group">
+                <div className="ingest-catalog-group__title">{group}</div>
+                <div className="ingest-catalog-group__items">
+                  {sports.map((sport) => {
+                    const tracked =
+                      trackedMap.get(sport.providerSportKey) ?? false;
+                    return (
+                      <label
+                        key={sport.providerSportKey}
+                        className="ingest-toggle"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={tracked}
+                          onChange={() =>
+                            toggleLeague({
+                              providerSportKey: sport.providerSportKey,
+                              enabled: !tracked,
+                            })
+                          }
+                        />
+                        <span className="ingest-toggle__label">
+                          {sport.title}
+                          {!sport.active && (
+                            <Badge variant="neutral">Off-season</Badge>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </CardBody>
       )}
     </Card>

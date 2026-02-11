@@ -183,20 +183,11 @@ export function DashboardPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="row-end">
-          <span>Last Capture</span>
-          <span>{
-              data.kpis.latestCaptureUtc
-                  ? formatDateTime(data.kpis.latestCaptureUtc)
-                  : "N/A"
-          }
-          </span>
-        </div>
       </div>
 
       <div className="card">
         <div className="card__header">
-          <span>Edge Scanner</span>
+          <span>Event Edges</span>
           <Badge variant="neutral">{filtered.length} results</Badge>
         </div>
         {filtered.length === 0 ? (

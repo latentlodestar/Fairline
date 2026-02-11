@@ -17,6 +17,7 @@ var api = builder.AddProject<Projects.Fairline_Api>("api")
     .WaitForCompletion(migrator);
 
 builder.AddViteApp("web", "../Fairline.Web")
+    .WithEndpoint("http", e => e.Port = 5019)
     .WithReference(api)
     .WaitFor(api);
 
