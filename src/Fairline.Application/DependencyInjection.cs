@@ -11,6 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<GetDashboardHandler>();
+        services.AddScoped<GetEdgeComparisonsHandler>();
         services.AddScoped<GetProvidersHandler>();
         services.AddScoped<GetScenariosHandler>();
         services.AddScoped<GetStatusHandler>();

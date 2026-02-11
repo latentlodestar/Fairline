@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import type { ApiStatusResponse } from "../types";
+import type { ApiStatusResponse, IngestRunSummary, DashboardResponse } from "../types";
 
 const mockStatus: ApiStatusResponse = {
   version: "1.0.0",
@@ -8,20 +8,42 @@ const mockStatus: ApiStatusResponse = {
   timestamp: new Date().toISOString(),
 };
 
+const mockRun: IngestRunSummary = {
+  id: "run-1",
+  runType: "GapFill",
+  status: "Completed",
+  startedAtUtc: new Date().toISOString(),
+  completedAtUtc: new Date().toISOString(),
+  requestCount: 5,
+  eventCount: 10,
+  snapshotCount: 20,
+  errorCount: 0,
+};
+
+const mockDashboard: DashboardResponse = {
+  kpis: {
+    eventCount: 10,
+    snapshotCount: 20,
+    bookCount: 3,
+    latestCaptureUtc: new Date().toISOString(),
+  },
+  edges: [],
+};
+
 const mockUseGetStatusQuery = vi.fn();
-const mockUseGetProvidersQuery = vi.fn();
-const mockUseGetScenariosQuery = vi.fn();
+const mockUseGetRunsQuery = vi.fn();
+const mockUseGetDashboardQuery = vi.fn();
 
 vi.mock("../api/api", () => ({
   useGetStatusQuery: (...args: unknown[]) => mockUseGetStatusQuery(...args),
-  useGetProvidersQuery: (...args: unknown[]) => mockUseGetProvidersQuery(...args),
-  useGetScenariosQuery: (...args: unknown[]) => mockUseGetScenariosQuery(...args),
+  useGetRunsQuery: (...args: unknown[]) => mockUseGetRunsQuery(...args),
+  useGetDashboardQuery: (...args: unknown[]) => mockUseGetDashboardQuery(...args),
 }));
 
 function setDefaults(overrides?: {
   status?: Partial<ReturnType<typeof mockUseGetStatusQuery>>;
-  providers?: Partial<ReturnType<typeof mockUseGetProvidersQuery>>;
-  scenarios?: Partial<ReturnType<typeof mockUseGetScenariosQuery>>;
+  runs?: Partial<ReturnType<typeof mockUseGetRunsQuery>>;
+  dashboard?: Partial<ReturnType<typeof mockUseGetDashboardQuery>>;
 }) {
   mockUseGetStatusQuery.mockReturnValue({
     data: mockStatus,
@@ -29,17 +51,17 @@ function setDefaults(overrides?: {
     error: undefined,
     ...overrides?.status,
   });
-  mockUseGetProvidersQuery.mockReturnValue({
-    data: [],
+  mockUseGetRunsQuery.mockReturnValue({
+    data: [mockRun],
     isLoading: false,
     error: undefined,
-    ...overrides?.providers,
+    ...overrides?.runs,
   });
-  mockUseGetScenariosQuery.mockReturnValue({
-    data: [],
+  mockUseGetDashboardQuery.mockReturnValue({
+    data: mockDashboard,
     isLoading: false,
     error: undefined,
-    ...overrides?.scenarios,
+    ...overrides?.dashboard,
   });
 }
 
@@ -50,14 +72,13 @@ describe("StatusPage", () => {
   it("renders loading state initially", () => {
     setDefaults({
       status: { data: undefined, isLoading: true },
-      providers: { data: undefined, isLoading: true },
-      scenarios: { data: undefined, isLoading: true },
+      runs: { data: undefined, isLoading: true },
     });
     render(<StatusPage />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it("renders dashboard after loading", () => {
+  it("renders page after loading", () => {
     setDefaults();
     render(<StatusPage />);
     expect(screen.getByText("System Status")).toBeInTheDocument();
@@ -69,10 +90,17 @@ describe("StatusPage", () => {
     expect(screen.getByText("Connected")).toBeInTheDocument();
   });
 
-  it("shows placeholder when no providers exist", () => {
+  it("shows placeholder when no runs exist", () => {
+    setDefaults({ runs: { data: [] } });
+    render(<StatusPage />);
+    expect(screen.getByText("No ingestion runs yet.")).toBeInTheDocument();
+  });
+
+  it("shows run data in table", () => {
     setDefaults();
     render(<StatusPage />);
-    expect(screen.getByText("No providers configured yet")).toBeInTheDocument();
+    expect(screen.getByText("GapFill")).toBeInTheDocument();
+    expect(screen.getByText("Completed", { selector: ".badge" })).toBeInTheDocument();
   });
 
   it("shows error state on API failure", () => {

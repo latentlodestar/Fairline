@@ -4,6 +4,8 @@ import type {
   CatalogRefreshResult,
   CatalogResponse,
   DashboardResponse,
+  EdgeComparisonsParams,
+  EdgeComparisonsResponse,
   IngestRunDetail,
   IngestRunSummary,
   ProviderInfo,
@@ -60,6 +62,22 @@ export const api = createApi({
     getDashboard: builder.query<DashboardResponse, void>({
       query: () => "/api/dashboard",
     }),
+
+    // Edge comparisons
+    getEdgeComparisons: builder.query<
+      EdgeComparisonsResponse,
+      EdgeComparisonsParams | void
+    >({
+      query: (params) => {
+        const p = params ?? {};
+        const qs = new URLSearchParams();
+        if (p.baseline) qs.set("baseline", p.baseline);
+        if (p.target) qs.set("target", p.target);
+        if (p.showIncomplete) qs.set("showIncomplete", "true");
+        const s = qs.toString();
+        return `/api/edges/comparisons${s ? `?${s}` : ""}`;
+      },
+    }),
   }),
 });
 
@@ -74,4 +92,5 @@ export const {
   useGetRunsQuery,
   useGetRunDetailQuery,
   useGetDashboardQuery,
+  useGetEdgeComparisonsQuery,
 } = api;

@@ -125,3 +125,44 @@ export interface EdgeRow {
   edgePct: number;
   signal: "value" | "tax" | "fair";
 }
+
+// Edge comparison model — one row per (event, market, selection)
+export type EdgeSignal =
+  | "value"
+  | "tax"
+  | "fair"
+  | "no_baseline"
+  | "no_target"
+  | "line_mismatch";
+
+export interface EdgeComparisonRow {
+  eventId: string;
+  homeTeam: string;
+  awayTeam: string;
+  sportKey: string;
+  sportTitle: string;
+  marketType: string;
+  selectionKey: string;
+  baselinePrice: number | null;
+  baselinePoint: number | null;
+  baselineDecimal: number | null;
+  baselineBook: string | null;
+  targetPrice: number | null;
+  targetPoint: number | null;
+  targetDecimal: number | null;
+  targetBook: string;
+  edgePct: number | null;
+  signal: EdgeSignal;
+  lastUpdatedUtc: string;
+}
+
+export interface EdgeComparisonsResponse {
+  kpis: DashboardKpis;
+  comparisons: EdgeComparisonRow[];
+}
+
+export interface EdgeComparisonsParams {
+  baseline?: string;
+  target?: string;
+  showIncomplete?: boolean;
+}

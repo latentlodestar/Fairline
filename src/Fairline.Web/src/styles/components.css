@@ -299,6 +299,20 @@
   text-align: right;
 }
 
+.table__th--sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 150ms;
+}
+
+.table__th--sortable:hover {
+  color: var(--fg);
+}
+
+.table__th--sorted {
+  color: var(--fg);
+}
+
 .table__td {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
@@ -578,6 +592,38 @@
 
 .dashboard {
   @apply flex flex-col gap-5;
+}
+
+/* ----------------------------------------------------------------
+   EDGE SCANNER
+   ---------------------------------------------------------------- */
+
+.edge-event {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 18rem;
+  display: inline-block;
+  vertical-align: middle;
+  cursor: default;
+}
+
+.edge-missing {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.edge-pct {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.edge-pct--value {
+  color: var(--success-text);
+}
+
+.edge-pct--tax {
+  color: var(--danger-text);
 }
 
 /* ----------------------------------------------------------------

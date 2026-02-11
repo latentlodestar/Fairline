@@ -21,3 +21,28 @@ public sealed record EdgeRow(
     string MarketKey, string OutcomeName,
     string BookmakerKey, string BookmakerTitle,
     decimal FairLine, decimal BookLine, decimal EdgePct, string Signal);
+
+// Edge comparison model — one row per (event, market, selection)
+public sealed record EdgeComparisonRow(
+    Guid EventId,
+    string HomeTeam,
+    string AwayTeam,
+    string SportKey,
+    string SportTitle,
+    string MarketType,
+    string SelectionKey,
+    decimal? BaselinePrice,
+    decimal? BaselinePoint,
+    decimal? BaselineDecimal,
+    string? BaselineBook,
+    decimal? TargetPrice,
+    decimal? TargetPoint,
+    decimal? TargetDecimal,
+    string TargetBook,
+    decimal? EdgePct,
+    string Signal,
+    DateTimeOffset LastUpdatedUtc);
+
+public sealed record EdgeComparisonsResponse(
+    DashboardKpis Kpis,
+    IReadOnlyList<EdgeComparisonRow> Comparisons);
