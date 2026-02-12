@@ -181,12 +181,10 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
             .Where(t => t.Enabled)
             .ToListAsync(ct);
 
-        var activeSportKeys = await db.SportCatalogs
+        var sportCatalogLookup = await db.SportCatalogs
             .AsNoTracking()
             .Where(sc => sc.Active)
-            .Select(sc => sc.ProviderSportKey)
-            .ToListAsync(ct);
-        var activeSet = new HashSet<string>(activeSportKeys);
+            .ToDictionaryAsync(sc => sc.ProviderSportKey, ct);
 
         var result = new List<TrackedLeagueState>();
         foreach (var tl in trackedLeagues)
@@ -208,9 +206,11 @@ public sealed class IngestRepository(IngestDbContext db) : IIngestRepository
                 .Select(s => (DateTimeOffset?)s.CapturedAtUtc)
                 .FirstOrDefaultAsync(ct);
 
+            var catalog = sportCatalogLookup.GetValueOrDefault(tl.ProviderSportKey);
             result.Add(new TrackedLeagueState(
                 tl.Provider, tl.ProviderSportKey, tl.Enabled,
-                activeSet.Contains(tl.ProviderSportKey),
+                catalog is not null,
+                catalog?.HasOutrights ?? false,
                 earliestEvent, latestSnapshot));
         }
 

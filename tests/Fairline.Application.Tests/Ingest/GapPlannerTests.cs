@@ -13,7 +13,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 2 hours, last snapshot 15 minutes ago => stale (10-min window)
-            new("the-odds-api", "basketball_nba", true, true,
+            new("the-odds-api", "basketball_nba", true, true, false,
                 Now.AddHours(2), Now.AddMinutes(-15)),
         };
 
@@ -27,7 +27,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 2 hours, last snapshot 5 minutes ago => fresh (10-min window)
-            new("the-odds-api", "basketball_nba", true, true,
+            new("the-odds-api", "basketball_nba", true, true, false,
                 Now.AddHours(2), Now.AddMinutes(-5)),
         };
 
@@ -41,7 +41,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 48 hours, last snapshot 30 minutes ago => fresh (60-min window)
-            new("the-odds-api", "football_nfl", true, true,
+            new("the-odds-api", "football_nfl", true, true, false,
                 Now.AddHours(48), Now.AddMinutes(-30)),
         };
 
@@ -55,7 +55,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 48 hours, last snapshot 65 minutes ago => stale
-            new("the-odds-api", "football_nfl", true, true,
+            new("the-odds-api", "football_nfl", true, true, false,
                 Now.AddHours(48), Now.AddMinutes(-65)),
         };
 
@@ -69,7 +69,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 5 days, last snapshot 3 hours ago => fresh (6-hour window)
-            new("the-odds-api", "soccer_epl", true, true,
+            new("the-odds-api", "soccer_epl", true, true, false,
                 Now.AddDays(5), Now.AddHours(-3)),
         };
 
@@ -83,7 +83,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Event in 5 days, last snapshot 7 hours ago => stale
-            new("the-odds-api", "soccer_epl", true, true,
+            new("the-odds-api", "soccer_epl", true, true, false,
                 Now.AddDays(5), Now.AddHours(-7)),
         };
 
@@ -96,7 +96,7 @@ public sealed class GapPlannerTests
     {
         var leagues = new List<TrackedLeagueState>
         {
-            new("the-odds-api", "basketball_nba", true, true, Now.AddHours(2), null),
+            new("the-odds-api", "basketball_nba", true, true, false, Now.AddHours(2), null),
         };
 
         var result = GapPlanner.DetermineLeaguesToRefresh(leagues, Now);
@@ -108,7 +108,7 @@ public sealed class GapPlannerTests
     {
         var leagues = new List<TrackedLeagueState>
         {
-            new("the-odds-api", "basketball_nba", false, true, Now.AddHours(2), null),
+            new("the-odds-api", "basketball_nba", false, true, false, Now.AddHours(2), null),
         };
 
         var result = GapPlanner.DetermineLeaguesToRefresh(leagues, Now);
@@ -121,7 +121,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // Enabled but not in season => skip
-            new("the-odds-api", "soccer_fifa_world_cup", true, false, null, null),
+            new("the-odds-api", "soccer_fifa_world_cup", true, false, false, null, null),
         };
 
         var result = GapPlanner.DetermineLeaguesToRefresh(leagues, Now);
@@ -134,7 +134,7 @@ public sealed class GapPlannerTests
         var leagues = new List<TrackedLeagueState>
         {
             // No events known, no snapshots => refresh (6-hour default)
-            new("the-odds-api", "golf_pga", true, true, null, null),
+            new("the-odds-api", "golf_pga", true, true, false, null, null),
         };
 
         var result = GapPlanner.DetermineLeaguesToRefresh(leagues, Now);
@@ -146,10 +146,10 @@ public sealed class GapPlannerTests
     {
         var leagues = new List<TrackedLeagueState>
         {
-            new("the-odds-api", "basketball_nba", true, true, Now.AddHours(2), Now.AddMinutes(-15)),   // stale
-            new("the-odds-api", "football_nfl", true, true, Now.AddHours(48), Now.AddMinutes(-30)),     // fresh
-            new("the-odds-api", "soccer_epl", true, true, Now.AddDays(5), Now.AddHours(-7)),            // stale
-            new("the-odds-api", "hockey_nhl", false, true, Now.AddHours(1), null),                      // disabled
+            new("the-odds-api", "basketball_nba", true, true, false, Now.AddHours(2), Now.AddMinutes(-15)),   // stale
+            new("the-odds-api", "football_nfl", true, true, false, Now.AddHours(48), Now.AddMinutes(-30)),     // fresh
+            new("the-odds-api", "soccer_epl", true, true, false, Now.AddDays(5), Now.AddHours(-7)),            // stale
+            new("the-odds-api", "hockey_nhl", false, true, false, Now.AddHours(1), null),                      // disabled
         };
 
         var result = GapPlanner.DetermineLeaguesToRefresh(leagues, Now);

@@ -41,10 +41,8 @@ public sealed class RunGapFillIngestionHandler(
             PublishLog(runId, "Info", $"Planned {leaguesToRefresh.Count} league refresh(es): {string.Join(", ", leaguesToRefresh)}");
             PublishProgress(runId, 0, leaguesToRefresh.Count, "Starting...");
 
-            var options = new OddsRequestOptions(
-                Markets: request.Markets,
-                Regions: request.Books is { Length: > 0 } ? null : request.Regions,
-                Bookmakers: request.Books);
+            var outrightsBySportKey = leagueStates.ToDictionary(l => l.ProviderSportKey, l => l.HasOutrights);
+            var regions = request.Books is { Length: > 0 } ? null : request.Regions;
 
             for (var i = 0; i < leaguesToRefresh.Count; i++)
             {
@@ -59,6 +57,16 @@ public sealed class RunGapFillIngestionHandler(
                 }
 
                 var sportKey = leaguesToRefresh[i];
+                var supportsOutrights = outrightsBySportKey.GetValueOrDefault(sportKey);
+                var markets = supportsOutrights
+                    ? request.Markets
+                    : request.Markets.Where(m => m != "outrights").ToArray();
+
+                var options = new OddsRequestOptions(
+                    Markets: markets,
+                    Regions: regions,
+                    Bookmakers: request.Books);
+
                 var sw = Stopwatch.StartNew();
 
                 try
