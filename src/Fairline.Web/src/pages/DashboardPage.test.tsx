@@ -1,13 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import type { EdgeComparisonsResponse } from "../types";
+
+const now = new Date().toISOString();
 
 const mockComparisons: EdgeComparisonsResponse = {
   kpis: {
     eventCount: 2,
     snapshotCount: 8,
     bookCount: 3,
-    latestCaptureUtc: new Date().toISOString(),
+    latestCaptureUtc: now,
   },
   comparisons: [
     {
@@ -16,6 +18,7 @@ const mockComparisons: EdgeComparisonsResponse = {
       awayTeam: "Wigan",
       sportKey: "soccer_epl",
       sportTitle: "EPL",
+      sportGroup: "Soccer",
       marketType: "h2h",
       selectionKey: "Draw",
       baselinePrice: 300,
@@ -28,7 +31,8 @@ const mockComparisons: EdgeComparisonsResponse = {
       targetBook: "draftkings",
       edgePct: -3.7,
       signal: "tax",
-      lastUpdatedUtc: new Date().toISOString(),
+      commenceTimeUtc: "2025-06-15T15:00:00Z",
+      lastUpdatedUtc: now,
     },
     {
       eventId: "evt-1",
@@ -36,6 +40,7 @@ const mockComparisons: EdgeComparisonsResponse = {
       awayTeam: "Wigan",
       sportKey: "soccer_epl",
       sportTitle: "EPL",
+      sportGroup: "Soccer",
       marketType: "h2h",
       selectionKey: "Arsenal",
       baselinePrice: -150,
@@ -48,7 +53,8 @@ const mockComparisons: EdgeComparisonsResponse = {
       targetBook: "draftkings",
       edgePct: 3.5,
       signal: "value",
-      lastUpdatedUtc: new Date().toISOString(),
+      commenceTimeUtc: "2025-06-15T15:00:00Z",
+      lastUpdatedUtc: now,
     },
   ],
 };
@@ -97,67 +103,127 @@ describe("DashboardPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders KPI cards", () => {
-    setDefaults();
-    render(<DashboardPage />);
-    expect(screen.getByText("Events")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("Books")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-  });
-
-  it("renders Edge Scanner header", () => {
+  it("renders Edge Scanner header with event count", () => {
     setDefaults();
     render(<DashboardPage />);
     expect(screen.getByText("Edge Scanner")).toBeInTheDocument();
-    expect(screen.getByText("2 results")).toBeInTheDocument();
+    expect(screen.getByText("1 event")).toBeInTheDocument();
   });
 
-  it("renders one row per selection (no duplicate events)", () => {
+  it("renders outer table columns for event-level data", () => {
     setDefaults();
     render(<DashboardPage />);
-    // Both rows are for same event but different selections
-    expect(screen.getAllByText(/Wigan @ Arsenal/)).toHaveLength(2);
+    expect(screen.getByText(/^Event/)).toBeInTheDocument();
+    expect(screen.getByText("Competition")).toBeInTheDocument();
+    expect(screen.getByText("Start Time")).toBeInTheDocument();
+    expect(screen.getByText("Signals")).toBeInTheDocument();
+  });
+
+  it("groups rows by event — event name appears once", () => {
+    setDefaults();
+    render(<DashboardPage />);
+    expect(screen.getAllByText(/Wigan @ Arsenal/)).toHaveLength(1);
+  });
+
+  it("shows best edge and signal counts on group row", () => {
+    setDefaults();
+    render(<DashboardPage />);
+    expect(screen.getByText("+3.50%")).toBeInTheDocument();
+    expect(screen.getByText("1V")).toBeInTheDocument();
+    expect(screen.getByText("1T")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("does not show inner table content when collapsed", () => {
+    setDefaults();
+    render(<DashboardPage />);
+    expect(screen.queryByText("Draw")).not.toBeInTheDocument();
+    // Inner table headers should not be present
+    expect(screen.queryByText("Selection")).not.toBeInTheDocument();
+  });
+
+  it("expands to show inner table with its own headers on click", () => {
+    setDefaults();
+    render(<DashboardPage />);
+
+    fireEvent.click(screen.getByText(/Wigan @ Arsenal/));
+
+    // Inner table headers
+    expect(screen.getByText("Selection")).toBeInTheDocument();
+    expect(screen.getByText("Market")).toBeInTheDocument();
+    expect(screen.getByText("Pinnacle")).toBeInTheDocument();
+    expect(screen.getByText("DraftKings")).toBeInTheDocument();
+    // Inner table rows
     expect(screen.getByText("Draw")).toBeInTheDocument();
-    expect(screen.getByText("Arsenal")).toBeInTheDocument();
+    expect(screen.getAllByText("Moneyline")).toHaveLength(2);
   });
 
-  it("shows Value badge for positive edge", () => {
+  it("shows Value and Tax badges on expanded inner rows", () => {
     setDefaults();
     render(<DashboardPage />);
+
+    fireEvent.click(screen.getByText(/Wigan @ Arsenal/));
+
     expect(screen.getByText("Value", { selector: ".badge" })).toBeInTheDocument();
-  });
-
-  it("shows Tax badge for negative edge", () => {
-    setDefaults();
-    render(<DashboardPage />);
     expect(screen.getByText("Tax", { selector: ".badge" })).toBeInTheDocument();
   });
 
-  it("renders comparison columns (Pinnacle + DraftKings)", () => {
+  it("formats moneyline prices when expanded", () => {
     setDefaults();
     render(<DashboardPage />);
-    expect(screen.getByText("Pinnacle")).toBeInTheDocument();
-    expect(screen.getByText("DraftKings")).toBeInTheDocument();
-  });
 
-  it("formats moneyline prices with sign", () => {
-    setDefaults();
-    render(<DashboardPage />);
+    fireEvent.click(screen.getByText(/Wigan @ Arsenal/));
+
     expect(screen.getByText("+300")).toBeInTheDocument();
     expect(screen.getByText("+250")).toBeInTheDocument();
     expect(screen.getByText("-150")).toBeInTheDocument();
     expect(screen.getByText("-130")).toBeInTheDocument();
   });
 
-  it("formats edge percentage", () => {
+  it("formats edge percentages in inner rows", () => {
     setDefaults();
     render(<DashboardPage />);
+
+    fireEvent.click(screen.getByText(/Wigan @ Arsenal/));
+
     expect(screen.getByText("-3.70%")).toBeInTheDocument();
-    expect(screen.getByText("+3.50%")).toBeInTheDocument();
   });
 
-  it("shows no_baseline warning for rows without baseline", () => {
+  it("collapses expanded group on second click", () => {
+    setDefaults();
+    render(<DashboardPage />);
+
+    const header = screen.getByText(/Wigan @ Arsenal/);
+    fireEvent.click(header);
+    expect(screen.getByText("Draw")).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.queryByText("Draw")).not.toBeInTheDocument();
+  });
+
+  it("Expand All / Collapse All buttons work", () => {
+    setDefaults();
+    render(<DashboardPage />);
+
+    fireEvent.click(screen.getByText("Expand All"));
+    expect(screen.getByText("Draw")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Collapse All"));
+    expect(screen.queryByText("Draw")).not.toBeInTheDocument();
+  });
+
+  it("expander button has aria-expanded attribute", () => {
+    setDefaults();
+    render(<DashboardPage />);
+
+    const expander = screen.getByRole("button", { expanded: false });
+    expect(expander).toHaveAttribute("aria-controls", "lines-evt-1");
+
+    fireEvent.click(expander);
+    expect(expander).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows no_baseline warning in inner table", () => {
     setDefaults({
       data: {
         ...mockComparisons,
@@ -175,6 +241,9 @@ describe("DashboardPage", () => {
       },
     });
     render(<DashboardPage />);
+
+    fireEvent.click(screen.getByText(/Wigan @ Arsenal/));
+
     expect(screen.getByText("No baseline")).toBeInTheDocument();
     expect(screen.getByText("N/A")).toBeInTheDocument();
   });

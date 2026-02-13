@@ -628,14 +628,95 @@
    EDGE SCANNER
    ---------------------------------------------------------------- */
 
-.edge-event {
+/* ---- Event group rows (outer table) ---- */
+
+.event-group-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.event-group-header:hover {
+  background: var(--row-hover);
+}
+
+.event-group-toggle {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.event-group-expander {
+  @apply inline-flex items-center justify-center;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-2);
+  border-radius: 2px;
+}
+
+.event-group-expander:hover {
+  background: var(--surface-3);
+}
+
+.event-group-expander:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.event-group-chevron {
+  display: inline-block;
+  font-size: 0.5rem;
+  transition: transform 200ms ease-out;
+  color: inherit;
+}
+
+.event-group-chevron--open {
+  transform: rotate(90deg);
+}
+
+.event-group-event-cell {
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 18rem;
-  display: inline-block;
-  vertical-align: middle;
-  cursor: default;
+  max-width: 20rem;
+}
+
+.event-group-meta-cell {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.event-group-signals {
+  @apply flex items-center gap-1;
+}
+
+/* ---- Expanded lines region (inner table) ---- */
+
+.expanded-lines-cell {
+  padding: 0;
+  border: none;
+}
+
+.table tbody .expanded-lines-row:hover {
+  background: transparent;
+}
+
+.lines-table-wrap {
+  padding: 0.25rem 0.75rem 0.5rem 3rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.lines-table .table__th {
+  background: transparent;
+  font-size: 0.625rem;
+}
+
+.lines-table tbody tr:last-child .table__td {
+  border-bottom: none;
 }
 
 .edge-missing {
