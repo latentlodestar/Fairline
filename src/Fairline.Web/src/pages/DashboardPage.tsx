@@ -215,7 +215,9 @@ function EventGroupRow({
         </button>
       </Td>
       <Td className="event-group-event-cell">
-        {eventName(group.homeTeam, group.awayTeam)}
+        {group.awayTeam && group.homeTeam
+          ? <>{group.awayTeam} @ <span className="home-team" title="Home">{group.homeTeam}</span></>
+          : eventName(group.homeTeam, group.awayTeam)}
       </Td>
       <Td className="event-group-meta-cell">
         {group.sportTitle}

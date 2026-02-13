@@ -305,17 +305,30 @@ function CatalogSection({
     catalog?.trackedLeagues?.map((t) => [t.providerSportKey, t.enabled]) ?? [],
   );
 
-  const enabledLeagueCount = useMemo(
-    () => catalog?.trackedLeagues?.filter((t) => t.enabled).length ?? 0,
+  const enabledLeagues = useMemo(
+    () => catalog?.trackedLeagues?.filter((t) => t.enabled) ?? [],
     [catalog],
   );
 
-  const marketCount = useMemo(
-    () => markets.split(",").map((s) => s.trim()).filter(Boolean).length,
-    [markets],
-  );
+  const enabledLeagueCount = enabledLeagues.length;
 
-  const estimatedRequests = enabledLeagueCount * marketCount;
+  const estimatedRequests = useMemo(() => {
+    const parsed = markets.split(",").map((s) => s.trim()).filter(Boolean);
+    const marketCount = parsed.length;
+    const hasOutrights = parsed.includes("outrights");
+
+    if (!hasOutrights) return enabledLeagueCount * marketCount;
+
+    const outrightsMap = new Map(
+      catalog?.sports?.map((s) => [s.providerSportKey, s.hasOutrights]) ?? [],
+    );
+
+    let skipped = 0;
+    for (const league of enabledLeagues) {
+      if (!outrightsMap.get(league.providerSportKey)) skipped += 1;
+    }
+    return enabledLeagueCount * marketCount - skipped;
+  }, [markets, enabledLeagues, enabledLeagueCount, catalog]);
 
   const sports = inSeasonOnly
     ? (catalog?.sports ?? []).filter((s) => s.active)
@@ -350,7 +363,7 @@ function CatalogSection({
             <span className="ingest-cost-estimate__label">
               API requests
               <span className="ingest-cost-estimate__breakdown">
-                {enabledLeagueCount} league{enabledLeagueCount !== 1 ? "s" : ""} &times; {marketCount} market{marketCount !== 1 ? "s" : ""}
+                {enabledLeagueCount} league{enabledLeagueCount !== 1 ? "s" : ""}
               </span>
             </span>
           </div>

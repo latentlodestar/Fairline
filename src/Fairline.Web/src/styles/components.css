@@ -683,6 +683,13 @@
   max-width: 20rem;
 }
 
+.home-team {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--muted);
+}
+
 .event-group-meta-cell {
   font-size: 0.75rem;
   color: var(--muted);
